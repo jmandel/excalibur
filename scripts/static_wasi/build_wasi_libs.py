@@ -15,7 +15,7 @@ TARBALLS = {
     'xz-5.4.6.tar.gz': 'https://github.com/tukaani-project/xz/releases/download/v5.4.6/xz-5.4.6.tar.gz',
     'jpeg-3.0.3.tar.gz': 'https://github.com/libjpeg-turbo/libjpeg-turbo/archive/refs/tags/3.0.3.tar.gz',
     'libpng-1.6.43.tar.gz': 'https://download.sourceforge.net/libpng/libpng-1.6.43.tar.gz',
-    'lcms2.16.tar.gz': 'https://github.com/mm2/Little-CMS/releases/download/lcms2.16/lcms2.16.tar.gz',
+    'lcms2-2.16.tar.gz': 'https://github.com/mm2/Little-CMS/releases/download/lcms2.16/lcms2-2.16.tar.gz',
     'freetype-2.13.2.tar.gz': 'https://download.savannah.gnu.org/releases/freetype/freetype-2.13.2.tar.gz',
     'tiff-4.6.0.tar.gz': 'https://download.osgeo.org/libtiff/tiff-4.6.0.tar.gz',
     'libwebp-1.4.0.tar.gz': 'https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-1.4.0.tar.gz',
@@ -91,7 +91,7 @@ def main():
 
     jpeg = unpack('jpeg-3.0.3.tar.gz', 'libjpeg-turbo-3.0.3'); jb = cmake_build(jpeg, 'libjpeg-turbo-build', ['-DENABLE_SHARED=OFF','-DWITH_JPEG8=ON','-DWITH_SIMD=OFF','-DWITH_TOOLS=OFF','-DWITH_TESTS=OFF',f'-DCMAKE_C_FLAGS={sjlj}',f'-DCMAKE_EXE_LINKER_FLAGS={sjlj}'], env_sjlj); shutil.copy2(jb/'libjpeg.a', PREFIX/'lib/libjpeg.a')
     png = unpack('libpng-1.6.43.tar.gz'); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static'], png, env_sjlj); run(['make','-j2','libpng16.la'], png, env_sjlj); run(['make','install-libLTLIBRARIES','install-pkgincludeHEADERS','install-binSCRIPTS','install-pkgconfigDATA'], png, env_sjlj)
-    lcms = unpack('lcms2.16.tar.gz', 'Little-CMS-lcms2.16'); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static'], lcms, env); run(['make','-j2'], lcms, env); run(['make','install'], lcms, env)
+    lcms = unpack('lcms2-2.16.tar.gz', 'lcms2-2.16'); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static'], lcms, env); run(['make','-j2'], lcms, env); run(['make','install'], lcms, env)
     ft = unpack('freetype-2.13.2.tar.gz'); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static','--without-harfbuzz','--without-brotli'], ft, env_sjlj); run(['make','-j2'], ft, env_sjlj); run(['make','install'], ft, env_sjlj)
     cmake_build(unpack('tiff-4.6.0.tar.gz'), 'tiff-build', ['-Dtiff-tools=OFF','-Dtiff-tests=OFF','-Dtiff-contrib=OFF','-Dtiff-docs=OFF','-Djbig=OFF','-Dwebp=OFF','-Dzstd=OFF','-Djpeg=ON','-Dzlib=ON','-Dlzma=ON'], env_sjlj)
     webp = unpack('libwebp-1.4.0.tar.gz'); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static','--disable-threading','--disable-neon','--disable-sse4.1','--disable-sse2','--disable-mips32','--disable-mipsdsp','--disable-mipsdspr2'], webp, env); run(['make','-j2'], webp, env); run(['make','install'], webp, env)

@@ -310,3 +310,9 @@ Important caveats:
 - Added `scripts/ci_build_all.sh` and `.github/workflows/build.yml`. The workflow checks out submodules, installs WASI SDK, Binaryen, Wasmtime, Android SDK/NDK/CMake, builds the full static WASI CPython/calibre runtime from source, generates shared web/Android runtime zips plus Android `.cwasm`, validates Node conversion fixtures, builds the static web app, builds the Android APK, publishes the web app to GitHub Pages, and uploads/copies the APK under `public/downloads/excalibur-debug.apk`.
 - Patched static WASI build scripts to accept `WASI_SDK_PATH` and `WASMTIME` env vars so CI can use explicit downloaded toolchains instead of the VM-local `wasmpy-build` path.
 - Validation after cleanup: Android `assembleDebug` passes; consumer app `bun run typecheck` and `bun build index.html --outdir dist --target browser` pass; `scripts/static_wasi/probe_static_wasi_conversion.py` passes all generated fixtures plus bundled Lewis Carroll samples against the shared exnref wasm.
+
+### CI run #1 fix: Little CMS tarball URL
+
+- First GitHub Actions run reached the full toolchain step and failed immediately in `build_wasi_libs.py` while downloading Little CMS.
+- Root cause: the script used `lcms2.16.tar.gz`, but the actual Little CMS 2.16 release asset is `lcms2-2.16.tar.gz`.
+- Patched the URL and unpack destination, then HEAD-checked all third-party tarball URLs locally.
