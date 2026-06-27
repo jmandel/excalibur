@@ -295,3 +295,9 @@ Important caveats:
 - Added Kotlin `WasmtimeRuntime` facade to unpack `app/calibre-runtime.zip`, run Python scripts, and convert an EPUB to AZW3 through native Wasmtime.
 - Made the Android launcher show a native Wasmtime dashboard by default. It runs a bundled `minimal.epub` conversion, logs precompiled/compile/run timings, stores `native-minimal.azw3`, and publishes it through the existing local Kindle HTTP server. The legacy WebView UI remains available from a button for comparison/fallback.
 - Validation: regenerated shared runtime artifacts with Android precompile; Android debug APK builds successfully with arm64 native libs; Node/static WASI fixture probe now uses `build/runtime/python-exnref.wasm` and passes all generated fixtures plus the three Lewis Carroll samples.
+
+### Public repo/CI cleanup start
+
+- User confirmed Pyodide should no longer be needed and asked to reorganize/clean on the way to the first public push.
+- Plan: remove Pyodide-era Android assets and root Pyodide npm dependency, keep the web app on static WASI CPython only, keep Android on native Wasmtime by default, add a full GitHub Actions workflow that builds the WASI runtime artifacts, static web site, and Android APK, then publishes Pages plus APK artifact/release-style download artifact.
+- Also prepare the repo remote for `jmandel/excalibur` on the provided internal GitHub host and keep submodules initialized for calibre.
