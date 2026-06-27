@@ -67,9 +67,10 @@ function UploadPanel() {
 }
 
 function BookCard({ book }: { book: LibraryBook }) {
-  const { enqueueBook, updateBook, deleteBook, deviceConfirmed } = useAppStore();
+  const { enqueueBook, updateBook, deleteBook, deviceConfirmed, queue } = useAppStore();
   const [editingTags, setEditingTags] = useState(book.tags.join(', '));
-  const busy = book.status === 'converting';
+  const queued = queue.some(j => j.bookId === book.id && (j.status === 'queued' || j.status === 'running'));
+  const busy = book.status === 'converting' || queued;
   return <article className={clsx('bookCard', book.status)}>
     <div className="bookTop">
       <div className="cover"><BookOpen/></div>
@@ -83,7 +84,7 @@ function BookCard({ book }: { book: LibraryBook }) {
     {book.error && <div className="error">{book.error}</div>}
     {book.sampleSource && <a className="source" href={book.sampleSource} target="_blank">Project Gutenberg source</a>}
     <div className="actions">
-      <button onClick={() => enqueueBook(book.id)} disabled={busy || !deviceConfirmed}>{busy ? <Loader2 className="spin"/> : <WandSparkles/>}{book.azw3Blob ? 'Queue reconvert' : 'Queue convert'}</button>
+      <button onClick={() => enqueueBook(book.id)} disabled={busy || !deviceConfirmed}>{busy ? <Loader2 className="spin"/> : <WandSparkles/>}{queued ? 'Queued' : book.azw3Blob ? 'Queue reconvert' : 'Queue convert'}</button>
       <button onClick={() => download(book.inputBlob, book.filename)}><Download/> Input</button>
       <button disabled={!book.azw3Blob} onClick={() => book.azw3Blob && download(book.azw3Blob, book.azw3Name || `${book.title}.azw3`)}><Download/> AZW3</button>
       <button className="ghostDanger" onClick={() => deleteBook(book.id)}><Trash2/> </button>

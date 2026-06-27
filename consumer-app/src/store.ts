@@ -119,8 +119,19 @@ export const useAppStore = create<AppState>((set, get) => {
     async updateBook(id, patch) { const b = await getBook(id); if (!b) return; await putBook({ ...b, ...patch, updatedAt: now() }); await get().refresh(); },
     async deleteBook(id) { await dbDelete(id); await get().refresh(); },
     async clear() { await clearBooks(); set({ queue: [], logs: [], activeJobId: undefined }); await get().refresh(); },
-    async setDevice(profile) { set(s => ({ selectedDevice: profile, options: { ...s.options, output_profile: profile }, deviceConfirmed: false })); for (const b of await listBooks()) if (b.azw3Blob) await putBook({ ...b, status: 'needs-reconversion', updatedAt: now() }); await get().refresh(); },
-    async setOptions(patch) { set(s => ({ options: { ...s.options, ...patch } })); for (const b of await listBooks()) if (b.azw3Blob) await putBook({ ...b, status: 'needs-reconversion', updatedAt: now() }); await get().refresh(); },
+    async setDevice(profile) {
+      const wasConfirmed = get().deviceConfirmed;
+      set(s => ({ selectedDevice: profile, options: { ...s.options, output_profile: profile }, deviceConfirmed: false }));
+      for (const b of await listBooks()) if (b.azw3Blob) await putBook({ ...b, status: 'needs-reconversion', updatedAt: now() });
+      await get().refresh();
+      if (wasConfirmed) await get().confirmDevice();
+    },
+    async setOptions(patch) {
+      set(s => ({ options: { ...s.options, ...patch } }));
+      for (const b of await listBooks()) if (b.azw3Blob) await putBook({ ...b, status: 'needs-reconversion', updatedAt: now() });
+      await get().refresh();
+      if (get().deviceConfirmed) await get().enqueueAllPending();
+    },
   };
 });
 
