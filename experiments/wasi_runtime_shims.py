@@ -15,8 +15,14 @@ def install_pre_import() -> None:
     """Install modules/APIs needed before importing browser_convert/calibre."""
     if not hasattr(os, 'umask'):
         os.umask = lambda mask: 0o22  # type: ignore[attr-defined]
+    # WASI libc/Python may expose these names but raise ENOSYS. Calibre only
+    # uses them for best-effort permissions on config/temp files.
+    os.chmod = lambda *a, **k: None  # type: ignore[assignment]
+    os.fchmod = lambda *a, **k: None  # type: ignore[attr-defined]
     _install_multiprocessing_stub()
     _install_threadpool_stub()
+    _install_zoneinfo_stub()
+    _install_tzlocal_stub()
     _install_regex_stub()
     _install_msgpack_stub()
     _install_lxml_facade()
@@ -89,6 +95,35 @@ def install_conversion_patches() -> None:
     reader.OEBReader._spine_from_opf = patched_spine_from_opf
 
 
+def _install_zoneinfo_stub() -> None:
+    try:
+        import zoneinfo
+        from datetime import UTC
+        real = zoneinfo.ZoneInfo
+        def ZoneInfo(key):
+            try:
+                return real(key)
+            except Exception:
+                return UTC
+        zoneinfo.ZoneInfo = ZoneInfo
+    except Exception:
+        pass
+
+def _install_tzlocal_stub() -> None:
+    if 'tzlocal' in sys.modules:
+        return
+    try:
+        import tzlocal  # noqa: F401
+        return
+    except Exception:
+        pass
+    from datetime import UTC
+    mod = types.ModuleType('tzlocal')
+    mod.get_localzone_name = lambda: 'UTC'
+    mod.get_localzone = lambda: UTC
+    mod.reload_localzone = mod.get_localzone
+    sys.modules['tzlocal'] = mod
+
 def _install_multiprocessing_stub() -> None:
     if 'multiprocessing' in sys.modules:
         return
@@ -130,7 +165,12 @@ def _install_threadpool_stub() -> None:
 
 
 def _install_regex_stub() -> None:
-    if 'regex' not in sys.modules:
+    if 'regex' in sys.modules:
+        return
+    try:
+        import regex  # noqa: F401
+        return
+    except Exception:
         import re
         sys.modules['regex'] = re
 
@@ -138,6 +178,11 @@ def _install_regex_stub() -> None:
 def _install_msgpack_stub() -> None:
     if 'msgpack' in sys.modules:
         return
+    try:
+        import msgpack  # noqa: F401
+        return
+    except Exception:
+        pass
     import json
     mp = types.ModuleType('msgpack')
     mp.dumps = lambda o, *a, **k: json.dumps(o).encode()
@@ -149,6 +194,11 @@ def _install_msgpack_stub() -> None:
 def _install_pil_stub() -> None:
     if 'PIL' in sys.modules:
         return
+    try:
+        import PIL.Image  # noqa: F401
+        return
+    except Exception:
+        pass
     pil = types.ModuleType('PIL')
     image = types.ModuleType('PIL.Image')
     image.open = lambda *a, **k: (_ for _ in ()).throw(NotImplementedError('PIL.Image.open unavailable in WASI shim'))
@@ -162,6 +212,12 @@ def _install_pil_stub() -> None:
 def _install_lxml_facade() -> None:
     if 'lxml' in sys.modules:
         return
+    try:
+        import lxml.etree  # noqa: F401
+        import lxml.html  # noqa: F401
+        return
+    except Exception:
+        pass
     import re
     import xml.etree.ElementTree as ET
     lxml = types.ModuleType('lxml'); lxml.__path__ = []

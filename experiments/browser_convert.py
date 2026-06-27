@@ -33,9 +33,16 @@ except Exception:
     sys.modules['html5_parser'] = hp
     sys.modules['html5_parser.soup'] = soup
 
-# Source tree layout is extracted at /app.
-os.chdir('/app')
-sys.path.insert(0, '/app/experiments')
+# Source tree layout is /app under the old Pyodide bundle and /repo in the
+# standalone/static WASI harness. Pick the first layout that exists.
+for _root in ('/app', '/repo'):
+    if Path(_root, 'experiments').exists():
+        APP_ROOT = Path(_root)
+        break
+else:
+    APP_ROOT = Path.cwd()
+os.chdir(APP_ROOT)
+sys.path.insert(0, str(APP_ROOT / 'experiments'))
 import calibre_bootstrap  # noqa: F401,E402
 
 # Ensure modules that import localization helpers by name see fallbacks.
@@ -53,7 +60,7 @@ from convert_with_plumber import convert  # noqa: E402
 from inspect_azw3 import inspect  # noqa: E402
 from check_profiles import main as check_profiles_main  # noqa: E402
 
-if sys.platform == 'wasi':
+if sys.platform == 'wasi' and os.environ.get('WASI_CALIBRE_CONVERSION_PATCHES') == '1':
     wasi_runtime_shims.install_conversion_patches()
 
 check_profiles_main()

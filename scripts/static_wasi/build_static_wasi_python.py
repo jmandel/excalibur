@@ -320,6 +320,15 @@ def setup_local_text():
         text += f'_imagingmorph wasi_pil_imagingmorph.c {pinc}\n'
     return text
 
+def patch_wasi_makefile():
+    makefile = SRC / 'builddir/wasi/Makefile'
+    if not makefile.exists():
+        return
+    data = makefile.read_text()
+    data = data.replace('-z stack-size=524288', '-z stack-size=8388608')
+    data = data.replace('--initial-memory=10485760', '--initial-memory=134217728')
+    makefile.write_text(data)
+
 def write_setup_local():
     (SRC / 'Modules/Setup.local').write_text(setup_local_text())
     bcopy = SRC / 'builddir/wasi/Modules/Setup.local'
@@ -352,6 +361,7 @@ def main():
     if args.clean:
         shutil.rmtree(SRC / 'builddir/wasi', ignore_errors=True)
     run([sys.executable, './Tools/wasm/wasm_build.py', 'wasi', 'configure'], cwd=SRC, env=target_env)
+    patch_wasi_makefile()
     write_setup_local()
     run([sys.executable, './Tools/wasm/wasm_build.py', '--clean', 'wasi', 'compile'], cwd=SRC, env=target_env)
     print(SRC / 'builddir/wasi/python.wasm')
