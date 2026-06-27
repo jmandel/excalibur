@@ -27,11 +27,32 @@ For Android it can also embed target-specific `wasi/python-aarch64-android.cwasm
 
 ## Build web app
 
-The easiest local path builds the WASI runtime artifacts from source and then builds the browser app:
+On Linux x86_64, the easiest local path builds the WASI runtime artifacts from source and then builds the browser app:
 
 ```bash
 scripts/build_web_app.sh
 ```
+
+Host tools expected on `PATH`:
+
+- `python3`, `curl`, `tar`, `cmake`, `make`, `pkg-config`
+- `autoconf`, `automake`, `libtool`
+- `unzip`, `zip`
+- `bun`, `node`, `git`
+
+On Ubuntu, the non-JS tools are:
+
+```bash
+sudo apt-get install -y build-essential cmake ninja-build pkg-config autoconf automake libtool curl python3 python3-venv unzip zip git
+```
+
+The script installs/uses repository-local toolchains where possible:
+
+- WASI SDK `33.0` under `$HOME/.local/share/wasmpy-build/wasi-sdk`
+- Binaryen `130` under `.toolchain/binaryen`
+- Wasmtime `46.0.1` under `.toolchain/wasmtime`
+
+It also initializes `third_party/calibre` if the submodule has not been checked out.
 
 To also include the Android precompiled Wasmtime artifact in the Android runtime zip:
 
@@ -47,7 +68,23 @@ bun install
 bun build index.html --outdir dist --target browser
 ```
 
+The build script runs the same runtime probe as CI: generated smoke fixtures plus the larger bundled sample EPUBs. To run only the generated fixtures while iterating locally:
+
+```bash
+python3 scripts/static_wasi/probe_static_wasi_conversion.py --generated-only
+```
+
 ## Build Android app
+
+CI installs the Android SDK automatically. For a local Android build, install/configure:
+
+- Android platform `android-35`
+- Android build-tools `35.0.0`
+- Android NDK `27.2.12479018`
+- Android CMake `3.22.1`
+- Java 21
+
+The app currently targets `arm64-v8a` / `aarch64-linux-android` for the precompiled Wasmtime artifact.
 
 ```bash
 ANDROID_HOME=/path/to/android-sdk ANDROID_SDK_ROOT=/path/to/android-sdk \

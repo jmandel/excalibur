@@ -47,14 +47,14 @@ while (($#)); do
 done
 
 missing=()
-for cmd in python3 curl tar cmake make pkg-config autoconf automake libtool unzip zip bun node; do
+for cmd in python3 curl tar cmake make pkg-config autoconf automake libtool unzip zip bun node git; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     missing+=("$cmd")
   fi
 done
 if ((${#missing[@]})); then
   printf 'Missing required host tools: %s\n' "${missing[*]}" >&2
-  printf 'On Ubuntu, install: build-essential cmake ninja-build pkg-config autoconf automake libtool curl python3 python3-venv unzip zip\n' >&2
+  printf 'On Ubuntu, install: build-essential cmake ninja-build pkg-config autoconf automake libtool curl python3 python3-venv unzip zip git\n' >&2
   exit 1
 fi
 

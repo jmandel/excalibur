@@ -22,6 +22,8 @@ LXML_TGZ = THIRD_PARTY_SRC / 'lxml-5.3.0.tar.gz'
 LXML_URL = 'https://files.pythonhosted.org/packages/source/l/lxml/lxml-5.3.0.tar.gz'
 PILLOW_TGZ = THIRD_PARTY_SRC / 'pillow-11.3.0.tar.gz'
 PILLOW_URL = 'https://files.pythonhosted.org/packages/source/p/pillow/pillow-11.3.0.tar.gz'
+WASI_STACK_SIZE = 8 * 1024 * 1024
+WASI_INITIAL_MEMORY = 128 * 1024 * 1024
 PURE_PYTHON_WHEELS = [
     ('css-parser', '1.1.1', ['css_parser']),
     ('chardet', '5.2.0', ['chardet']),
@@ -430,16 +432,33 @@ def setup_local_text():
         text += f'_imagingmorph wasi_pil_imagingmorph.c {pinc}\n'
     return text
 
-def patch_wasi_makefile():
-    makefile = SRC / 'builddir/wasi/Makefile'
-    if not makefile.exists():
-        return
-    data = makefile.read_text()
-    data = data.replace('-z stack-size=524288', '-z stack-size=8388608')
-    data = data.replace('--initial-memory=10485760', '--initial-memory=134217728')
+def patch_wasi_memory_limits(required: bool = False):
+    old_stack = '-z stack-size=524288'
+    new_stack = f'-z stack-size={WASI_STACK_SIZE}'
+    old_memory = '--initial-memory=10485760'
+    new_memory = f'--initial-memory={WASI_INITIAL_MEMORY}'
+    paths = [
+        SRC / 'configure',
+        SRC / 'configure.ac',
+        SRC / 'builddir/wasi/Makefile',
+        SRC / 'builddir/wasi/Makefile.pre',
+    ]
+    for path in paths:
+        if not path.exists():
+            continue
+        data = path.read_text()
+        patched = data.replace(old_stack, new_stack).replace(old_memory, new_memory)
+        if patched != data:
+            path.write_text(patched)
     # Keep CPython/core and native modules optimized so browser V8's fixed host
     # call stack is not exhausted by unoptimized eval/import paths.
-    makefile.write_text(data)
+    if required:
+        makefile = SRC / 'builddir/wasi/Makefile'
+        data = makefile.read_text()
+        if new_stack not in data or new_memory not in data:
+            raise SystemExit(
+                'failed to patch WASI CPython memory limits in builddir/wasi/Makefile'
+            )
 
 def write_setup_local():
     (SRC / 'Modules/Setup.local').write_text(setup_local_text())
@@ -453,7 +472,7 @@ def main():
     ap.add_argument('--official-eh', action='store_true', help='emit official WebAssembly EH instead of legacy EH for Android/Chicory probes')
     ap.add_argument('--no-sjlj', action='store_true', help='experimental: omit LLVM wasm SJLJ/setjmp flags for Android/Chicory parse probes')
     args = ap.parse_args()
-    ensure_source(); ensure_wasmtime(); ensure_regex_source(); ensure_msgpack_source(); ensure_lxml_source(); ensure_pillow_source(); ensure_pure_python_wheels(); stage_regex_package(); stage_msgpack_package(); stage_lxml_package(); stage_pillow_package(); stage_pure_python_wheels(); write_setup_local()
+    ensure_source(); patch_wasi_memory_limits(); ensure_wasmtime(); ensure_regex_source(); ensure_msgpack_source(); ensure_lxml_source(); ensure_pillow_source(); ensure_pure_python_wheels(); stage_regex_package(); stage_msgpack_package(); stage_lxml_package(); stage_pillow_package(); stage_pure_python_wheels(); write_setup_local()
     base_env = env()
     host_cmd = [sys.executable, './Tools/wasm/wasm_build.py']
     if args.clean:
@@ -481,8 +500,8 @@ def main():
     if args.clean:
         shutil.rmtree(SRC / 'builddir/wasi', ignore_errors=True)
     run([sys.executable, './Tools/wasm/wasm_build.py', 'wasi', 'configure'], cwd=SRC, env=target_env)
-    patch_wasi_makefile()
     write_setup_local()
+    patch_wasi_memory_limits(required=True)
     # wasm_build.py's generic `wasi compile` invokes `make all`; with our
     # generated static third-party MODOBJS, that target can skip rebuilding the
     # custom objects after a clean while config.o still references their

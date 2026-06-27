@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import json, shutil, subprocess, tempfile, zipfile
+import argparse, json, shutil, subprocess, tempfile, time, zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -71,19 +71,29 @@ def run_fixture(fixture: Path) -> int:
         shutil.copy2(fixture, work / fixture.name)
         runner = work / 'run.js'; runner.write_text(RUNNER)
         cmd = [NODE, '--stack-size=32768', str(runner), str(wasm), str(runtime_root), str(work), fixture.name]
+        start = time.monotonic()
         cp = subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        elapsed = time.monotonic() - start
         print(f'=== {fixture.name} ===')
         print(cp.stdout)
         out = work / 'out.azw3'
         if cp.returncode == 0 and out.exists() and out.stat().st_size > 0:
-            print(f'OK {fixture.name}: {out.stat().st_size} bytes')
+            print(f'OK {fixture.name}: {out.stat().st_size} bytes in {elapsed:.2f}s; node return code {cp.returncode}')
             return 0
-        print(f'FAIL {fixture.name}')
+        print(f'FAIL {fixture.name}: {elapsed:.2f}s; node return code {cp.returncode}; out exists={out.exists()} size={out.stat().st_size if out.exists() else 0}')
         return cp.returncode or 1
 
 def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument(
+        '--generated-only',
+        action='store_true',
+        help='only probe generated smoke fixtures; default also probes bundled sample EPUBs',
+    )
+    args = ap.parse_args()
     fixtures = sorted((ROOT / 'fixtures/generated').glob('*.epub'))
-    fixtures += sorted((ROOT / 'consumer-app/src/assets/samples').glob('*.epub'))
+    if not args.generated_only:
+        fixtures += sorted((ROOT / 'consumer-app/src/assets/samples').glob('*.epub'))
     failures = 0
     for f in fixtures:
         failures += run_fixture(f) != 0
