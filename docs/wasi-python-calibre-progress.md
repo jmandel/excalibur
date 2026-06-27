@@ -2,9 +2,33 @@
 
 Follow-up to `docs/wasi-python-calibre-spike.md`.
 
-## Progress made
+## Current status: first standalone WASI AZW3 produced
 
-A newer prebuilt WASI CPython 3.12 runtime from `vmware-labs/webassembly-language-runtimes` includes `zlib` and `_bz2`:
+`experiments/wasi_python312_probe.py` now demonstrates a complete EPUB→AZW3 conversion under standalone WASI CPython 3.12, outside WebView/V8/Pyodide.
+
+Command:
+
+```bash
+python3 experiments/wasi_python312_probe.py
+```
+
+The probe downloads/runs a prebuilt WASI CPython 3.12 runtime from `vmware-labs/webassembly-language-runtimes`, mounts `web/calibre-runtime.zip`, installs pure-Python wheels, and runs the real calibre `Plumber` path against a generated flat EPUB fixture.
+
+Latest successful output includes:
+
+```text
+browser_convert ok
+InputFormatPlugin: EPUB Input running
+Creating AZW3 Output...
+AZW3 output written to /work/flat.azw3
+{'file': '/work/flat.azw3', 'size': 10403, ... 'mobi_version': 8, 'is_kf8': True}
+```
+
+This is the first successful no-WebView/no-Pyodide-browser-host conversion proof in the repo.
+
+## How it works today
+
+The runtime has useful WASI stdlib modules:
 
 ```text
 import ok zlib
@@ -12,51 +36,31 @@ import ok bz2
 import ok zipfile
 ```
 
-`experiments/wasi_python312_probe.py` mounts that runtime, extracts `web/calibre-runtime.zip`, installs pure-Python wheels, and provides experimental pure-Python stubs for unavailable binary modules (`lxml`, `PIL`, `regex`, `msgpack`) to measure how far the calibre pipeline can get without native wheels.
+The probe currently uses pragmatic compatibility shims for unavailable binary modules/APIs:
 
-Current command:
+- `lxml`: a small ElementTree-backed facade plus targeted XPath/OPF/OEB patches.
+- `PIL`: minimal image module shell; flat text fixture has no real images.
+- `regex`: falls back to stdlib `re`.
+- `msgpack`: JSON-backed shell sufficient for this path.
+- `multiprocessing`/thread executor: synchronous/no-op compatibility shell.
+- OEB/KF8 writer patches to bypass or simplify lxml-heavy operations where safe for the flat fixture.
 
-```bash
-python3 experiments/wasi_python312_probe.py
-```
+## Limitations
 
-Current observed progress:
+This is a proof of feasibility, not yet production-quality calibre-on-WASI:
 
-```text
-bootstrap ok
-KINDLE_PROFILES_OK
-browser_convert ok
-InputFormatPlugin: EPUB Input running
-```
+- The successful fixture is intentionally flat and text-only.
+- The existing generated EPUB fixtures with nested `OEBPS/...` paths and EPUB3 nav need more complete XML/path handling.
+- Real books need real `lxml` semantics or a much more robust compatibility layer.
+- Image-heavy books still need real Pillow or deeper image stubs/handling.
+- `regex` and `msgpack` are still fallback shims.
+- Dynamic CPython extension loading remains unresolved for this prebuilt runtime (`EXTENSION_SUFFIXES == []`).
 
-This is materially farther than the 3.11 probe: calibre's browser conversion entrypoint imports under standalone WASI CPython and starts the real Plumber/EPUB input path.
+## Next direction
 
-## Current blocker
+There are now two viable tracks:
 
-The run stops in EPUB OPF/spine processing:
+1. **Pragmatic pure-Python compatibility layer**: keep expanding the ElementTree-backed lxml facade and path handling until normal EPUB/MOBI fixtures pass. This may be enough for many text-first books and keeps the runtime pure WASI.
+2. **Real extension toolchain**: build/customize WASI CPython with dynamic or statically-linked extension support, then build lxml/libxml2/libxslt, Pillow, regex, and msgpack for that ABI.
 
-```text
-ValueError: No valid entries in the spine of this EPUB
-```
-
-That failure is caused by the deliberately incomplete pure-Python `lxml` facade in the probe. It is useful for proving import and early execution progress, but it is not a real replacement for lxml. calibre relies on lxml XPath, parent links, builders, HTML parsing, serialization, and element semantics throughout OPF/OEB/MOBI code.
-
-## Extension-module investigation
-
-`wasmpy-build` can compile CPython C extensions to WASM modules, but the probed CPython runtime reports:
-
-```python
-importlib.machinery.EXTENSION_SUFFIXES == []
-```
-
-A tiny `hello` C extension can be compiled to a `.wasm`, but this runtime does not load extension modules via importlib/dlopen, so producing standalone extension `.wasm` files is not enough. We either need a WASI CPython build with dynamic extension loading enabled, or statically linked/built-in modules.
-
-## Updated path to success
-
-The most promising route is now:
-
-1. Build CPython for WASI with `zlib` and dynamic extension support, or with required extensions statically linked.
-2. Build/link lxml's Cython output + libxml2/libxslt into that same CPython/WASI build.
-3. Then add Pillow, regex, and msgpack similarly or replace them only where truly optional.
-
-A pure-Python lxml facade is not viable for full conversion; it will become a growing reimplementation of lxml/calibre XML semantics.
+The successful flat EPUB conversion shows Option D can work end-to-end. The remaining question is whether to harden the shim path or invest in real WASI extension builds.

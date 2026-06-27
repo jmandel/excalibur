@@ -23,23 +23,28 @@ browser_convert ok
 Conversion options changed from defaults:
   output_profile: 'kindle_pw3'
 InputFormatPlugin: EPUB Input running
-on /work/minimal.epub
+on /work/flat.epub
 EPUB appears to be invalid ZIP file, trying a more forgiving ZIP parser
-Traceback (most recent call last):
-  File "/probe.py", line 165, in <module>
-    print(browser_convert.convert_file('/work/minimal.epub','/work/minimal.azw3', {'output_profile':'kindle_pw3'}))
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/app/experiments/browser_convert.py", line 60, in convert_file
-    convert(inp, out, options=options or {})
-  File "/app/experiments/convert_with_plumber.py", line 32, in convert
-    plumber.run()
-  File "/app/third_party/calibre/src/calibre/ebooks/conversion/plumber.py", line 1087, in run
-    self.oeb = self.input_plugin(stream, self.opts,
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/app/third_party/calibre/src/calibre/customize/conversion.py", line 241, in __call__
-    ret = self.convert(stream, options, file_ext,
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/app/third_party/calibre/src/calibre/ebooks/conversion/plugins/epub_input.py", line 357, in convert
-    raise ValueError('No valid entries in the spine of this EPUB')
-ValueError: No valid entries in the spine of this EPUB
-convert/import failed
+Parsing all content...
+Generating default TOC from spine...
+Merging user specified metadata...
+Detecting structure...
+Auto generated TOC with 0 entries.
+Flattening CSS and remapping font sizes...
+Source base font size is 12.00000pt
+Removing fake margins...
+Cleaning up manifest...
+Trimming unused files from manifest...
+Trimming 'stylesheet.css' from manifest
+Trimming 'page_styles.css' from manifest
+Creating AZW3 Output...
+Serializing resources...
+Splitting markup on page breaks and flow limits, if any...
+Creating KF8 output
+	Generating KF8 markup...
+	Compressing markup...
+	Creating indices...
+Document has no ToC, MOBI will have no NCX index
+AZW3 output written to /work/flat.azw3
+/work/flat.azw3
+{'file': '/work/flat.azw3', 'size': 10403, 'title': 'Unknown', 'records': 12, 'record0_offset': 176, 'mobi_header_offset_in_record0': 16, 'exth_offset_in_record0': 280, 'mobi_version': 8, 'first_non_text_record': 3, 'is_kf8': True}
