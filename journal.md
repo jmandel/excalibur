@@ -270,3 +270,12 @@ Important caveats:
 - Investigating why Wasmtime was dramatically faster than WasmEdge on the native-runtime host probe.
 - Hypothesis: Wasmtime is compiling/JITing the exnref exception-handling artifact, while WasmEdge can interpret it but its AOT/JIT backend does not yet support the exception-handling opcodes emitted by this CPython/SJLJ build.
 - Next checks: run WasmEdge against both the exnref-translated artifact and the original legacy-EH artifact with interpreter/JIT/AOT options, and compare whether any path avoids interpreter fallback.
+
+### WasmEdge performance sanity check result
+
+- Confirmed the WasmEdge/Wasmtime performance difference is real for the current artifact and is not just missing a simple WasmEdge feature flag.
+- WasmEdge 0.17.0 with the original legacy-EH `python.wasm`: fails to load before execution (`illegal opcode`, code `0x117`). JIT mode also fails the same way.
+- WasmEdge 0.17.0 with the exnref-translated `/tmp/python-exnref.wasm`: interpreter runs successfully.
+- WasmEdge `--run-mode=jit`, `--enable-exception-handling`, and `--enable-all --run-mode=jit` all still warn that Exception Handling is not supported in WasmEdge AOT/JIT, then compilation fails and WasmEdge falls back to interpreter mode.
+- WasmEdge `compile` also has no `--enable-exception-handling` option in this release; compiling the exnref artifact fails before producing an AOT `.so`.
+- Interpretation: WasmEdge can interpret the current EH/exnref CPython artifact, but its compiler/JIT path cannot currently compile the EH instructions we need. Wasmtime can compile/run the same artifact when `-W exceptions=y` is set, explaining the large speed gap.
