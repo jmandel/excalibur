@@ -85,4 +85,4 @@ Screens:
 
 ## Current next task
 
-Implement Milestone 1: Chicory-based `python.wasm` probe and document results in `journal.md`.
+Milestone 1 has proven that the exnref-translated static WASI CPython/calibre artifact can run under Chicory, but Chicory is too slow for a good Android UX. Shift the runtime proof to a native NDK/JNI embedding spike, with Wasmtime as the first candidate and WasmEdge as fallback. See `NATIVE_WASM_RUNTIMES.md` for host-side runtime probe results and the recommended JNI plan.

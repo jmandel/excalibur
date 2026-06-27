@@ -242,3 +242,14 @@ Important caveats:
 - Starting direct investigation of embedding a native WebAssembly runtime in the Android APK via NDK/JNI instead of relying on WebView or pure-JVM Chicory.
 - Candidate runtimes to assess: WasmEdge, Wasmer, Wasm3, Wasmtime/WAMR if useful.
 - First-pass criteria: Android embeddability, WASI support, WebAssembly EH/exnref compatibility for the static CPython artifact, expected performance versus Chicory, APK/ABI packaging complexity, and maintenance risk.
+
+### Native runtime host probes
+
+- Directly tested the user's suggested NDK/JNI-native runtime direction by running the exnref-translated static WASI CPython/calibre artifact on several host runtimes before touching Android packaging.
+- WasmEdge 0.17.0: passed `print`, `import browser_convert`, and `minimal.epub` conversion. Minimal conversion took about 73s and peak RSS was about 549 MiB. `--enable-jit`/JIT attempted compilation but warned that Exception Handling is not supported in WasmEdge AOT/JIT, then fell back to interpreter mode.
+- Wasmtime 46.0.1: passed with `-W exceptions=y`. First trivial run paid compile/cache cost (~16.6s), then `import browser_convert` was ~1.13s and `minimal.epub` conversion was ~1.19s with about 167 MiB RSS. This is dramatically better than Chicory and is the leading Android runtime candidate.
+- Wasmer 7.1.0: failed before execution: no backend supports the module's required feature set, even with exceptions/reference/all proposal flags.
+- WAMR/iwasm 2.4.4 gc-eh: failed loading `/tmp/python-exnref.wasm` with unsupported opcode `0x1f`; the release advertises legacy EH but not current EH.
+- Wasm3 0.5.0: failed parsing the module (`out of order Wasm section`), confirming it is not suitable for this modern CPython/WASI artifact.
+- Downloaded Android aarch64 runtime packages for the two viable options. Wasmtime's Android C API package includes a ~24.8 MiB `libwasmtime.so` plus headers; WasmEdge's Android package includes a ~3.1 MiB `libwasmedge.so` plus headers.
+- Conclusion: move production Android runtime exploration from Chicory to NDK/JNI embedding. Try Wasmtime first because speed is the blocker and it supports the exnref/EH artifact very well on the host. Keep WasmEdge as the smaller/slower fallback.
