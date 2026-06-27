@@ -31,3 +31,22 @@ Initial calibre source observations from prior reconnaissance:
   - translator shim needs `gettext`, plural APIs, and `install()`.
   - ICU shim needs case constants and multiple functions; currently still failing on additional ICU API surface (`icu.chr` next).
 - This reinforces the plan: Pyodide reuse is feasible-looking but will require a deliberate shim layer, not ad-hoc imports.
+
+### Import probe reached green
+
+- Expanded `experiments/import_probe.py` shims until the key modules import successfully under native Python 3.12 + venv dependencies.
+- Green imports now include:
+  - `calibre.ebooks.conversion.plugins.epub_input`
+  - `calibre.ebooks.oeb.base`
+  - `calibre.ebooks.oeb.reader`
+  - `calibre.ebooks.conversion.plugins.mobi_output`
+  - `calibre.ebooks.mobi.writer2.resources`
+  - `calibre.ebooks.mobi.writer8.main`
+  - `calibre.ebooks.mobi.writer8.mobi`
+- Additional shim discoveries:
+  - calibre's source-tree runtime expects a top-level `compression` package; aliasing stdlib `zlib`, `bz2`, `gzip`, `lzma` is enough for this import set.
+  - calibre's AI plugin type hints can fail under the local Python 3.12 probe (`ChatMessage` / `ChatResponse`); stubbing `calibre.ai` and builtins placeholders avoids pulling that unrelated surface.
+  - Qt image stack can be avoided at import time by stubbing `calibre.utils.img`; initial AZW3 path uses `process_images=False`, so this is acceptable for the first spike.
+  - The OEB and AZW3 writer modules themselves did not require Qt once image helpers were stubbed.
+
+This is a strong signal that a reduced-calibre Pyodide package is plausible: the first hurdle is a clean shim/runtime bootstrap, not a deep rewrite.

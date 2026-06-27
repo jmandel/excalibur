@@ -186,4 +186,11 @@ The Rust writer should use calibre's `writer8` as a reference but expose a small
 - Stubs `calibre_extensions.cPalmdoc`, `speedup`, `icu`, `translator`, and `imageops`.
 - Attempts imports of the core EPUB/OEB/AZW3 modules.
 
-Known next failure: expand ICU shim beyond the current functions; latest native probe reached missing `calibre_extensions.icu.chr`.
+Status: green for the target import set under native Python 3.12 with venv packages and runtime shims.
+
+Next probe should move from importability to execution:
+
+1. Run `EPUBInput.convert()` on `fixtures/generated/minimal.epub` into a temp dir.
+2. Run `create_oebbook()` on the resulting OPF.
+3. Instantiate `AZW3Output` or directly call the writer path with minimal opts.
+4. Determine which conversion transforms are truly required versus optional polish.
