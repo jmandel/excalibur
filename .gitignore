@@ -20,3 +20,10 @@ experiments/wasi-build/
 experiments/wasi-build-venv/
 
 experiments/static-wasi-python/
+
+# Generated runtime artifacts
+web/calibre-runtime.zip
+consumer-app/src/assets/calibre-runtime.zip
+android-app/app/src/main/assets/app/calibre-runtime.zip
+public/
+.toolchain/
