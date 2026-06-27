@@ -26,3 +26,13 @@ confirm.onclick=()=>{state.confirmed=true; enqueueAll(); render()}; search.oninp
 
 publish(); render(); log('Library ready')
 </script></body></html>
+<script>
+(function(){
+  const card=document.createElement('section'); card.className='card'; card.innerHTML='<h2>Native WASM runtime spike</h2><p class="small">Runs a tiny add.wasm through Chicory in Kotlin, outside WebView/V8. This proves an embedded JVM WASM runtime can execute packaged .wasm from the APK.</p><button id="wasmSpikeBtn">Run native WASM smoke test</button><pre id="wasmSpikeOut" class="queue"></pre>';
+  document.querySelector('main').appendChild(card);
+  card.querySelector('#wasmSpikeBtn').onclick=function(){
+    try { card.querySelector('#wasmSpikeOut').textContent = AndroidKindle.runWasmSpike(); }
+    catch(e) { card.querySelector('#wasmSpikeOut').textContent = 'Failed: '+e; }
+  };
+})();
+</script>

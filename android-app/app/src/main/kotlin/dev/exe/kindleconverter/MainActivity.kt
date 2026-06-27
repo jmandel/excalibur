@@ -17,6 +17,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import dev.exe.kindleconverter.wasm.WasmSpike
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -111,6 +112,7 @@ class MainActivity : Activity() {
             file.writeBytes(Base64.decode(base64, Base64.DEFAULT))
             return file.absolutePath
         }
+        @JavascriptInterface fun runWasmSpike(): String = WasmSpike.run(ctx)
         @JavascriptInterface fun serverPort(): Int = server.port
         @JavascriptInterface fun serverUrls(): String = serverUrlsJson(ctx, server.port)
         @JavascriptInterface fun setCatalogJson(json: String) { server.catalogJson = json }

@@ -9,3 +9,8 @@ android { namespace = "dev.exe.kindleconverter"; compileSdk = 35
 }
 
 kotlin { jvmToolchain(17) }
+
+dependencies {
+    implementation("com.dylibso.chicory:runtime:1.7.5")
+    implementation("com.dylibso.chicory:wasi:1.7.5")
+}
