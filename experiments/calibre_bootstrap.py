@@ -263,3 +263,15 @@ try:
     _loc.calibre_langcode_to_name = lambda x, localize=True: x or 'en'
 except Exception:
     pass
+
+# Avoid Qt dependency for legacy MOBI6 output fixture generation. calibre's
+# MOBI output already handles Unavailable by warning and continuing.
+rasterize_mod = types.ModuleType('calibre.ebooks.oeb.transforms.rasterize')
+class Unavailable(Exception):
+    pass
+class SVGRasterizer:
+    def __init__(self, *a, **k):
+        raise Unavailable('Qt SVG rasterizer unavailable in experiment runtime')
+rasterize_mod.Unavailable = Unavailable
+rasterize_mod.SVGRasterizer = SVGRasterizer
+sys.modules['calibre.ebooks.oeb.transforms.rasterize'] = rasterize_mod

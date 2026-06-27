@@ -121,6 +121,44 @@ def main() -> None:
         "OEBPS/chapter2.xhtml": '''<!doctype html><html xmlns="http://www.w3.org/1999/xhtml"><head><title>End</title></head><body><p id="start">End.</p></body></html>''',
     })
 
+    epub2_opf = '''<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="uid">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="uid">urn:uuid:epub2-ncx</dc:identifier>
+    <dc:title>EPUB2 NCX</dc:title>
+    <dc:creator>Test Fixture</dc:creator>
+    <dc:language>en</dc:language>
+  </metadata>
+  <manifest>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    <item id="ch1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
+    <item id="ch2" href="chapter2.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine toc="ncx">
+    <itemref idref="ch1"/>
+    <itemref idref="ch2"/>
+  </spine>
+</package>
+'''
+    write_epub("epub2-ncx.epub", {
+        **common,
+        "OEBPS/content.opf": epub2_opf,
+        "OEBPS/toc.ncx": ncx("EPUB2 NCX"),
+        "OEBPS/chapter1.xhtml": '''<html xmlns="http://www.w3.org/1999/xhtml"><head><title>One</title></head><body><h1>EPUB2 Chapter</h1><p>NCX only.</p></body></html>''',
+        "OEBPS/chapter2.xhtml": '''<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Two</title></head><body><p id="start">Second.</p></body></html>''',
+    })
+
+    rtl_opf = opf("RTL Arabic", "", '    <itemref idref="ch1"/>\n    <itemref idref="ch2"/>').replace('<dc:language>en</dc:language>', '<dc:language>ar</dc:language>').replace('<spine toc="ncx">', '<spine toc="ncx" page-progression-direction="rtl">')
+    write_epub("rtl.epub", {
+        **common,
+        "OEBPS/content.opf": rtl_opf,
+        "OEBPS/nav.xhtml": nav("الفهرس"),
+        "OEBPS/toc.ncx": ncx("RTL Arabic"),
+        "OEBPS/chapter1.xhtml": '''<!doctype html><html xmlns="http://www.w3.org/1999/xhtml" dir="rtl" lang="ar"><head><title>واحد</title></head><body><h1 id="top">الفصل الأول</h1><p>مرحبا <a href="chapter2.xhtml#start">التالي</a>.</p></body></html>''',
+        "OEBPS/chapter2.xhtml": '''<!doctype html><html xmlns="http://www.w3.org/1999/xhtml" dir="rtl" lang="ar"><head><title>اثنان</title></head><body><h1 id="start">الفصل الثاني</h1><p>نهاية.</p></body></html>''',
+    })
+
 
 if __name__ == "__main__":
     main()
+

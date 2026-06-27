@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 
 from convert_with_plumber import convert
 from inspect_azw3 import inspect
@@ -13,6 +14,9 @@ OUT = ROOT / "experiments" / "out"
 
 
 def main() -> int:
+    if OUT.exists():
+        shutil.rmtree(OUT)
+    OUT.mkdir(parents=True, exist_ok=True)
     epubs = sorted(FIXTURES.glob("*.epub"))
     if not epubs:
         raise SystemExit("No EPUB fixtures found")
@@ -26,6 +30,17 @@ def main() -> int:
         assert info["records"] > 1, info
         print(f"VALID {out.name}: records={info['records']} size={info['size']}")
         generated.append(out)
+
+        mobi = OUT / f"{epub.stem}.mobi"
+        print(f"CONVERT EPUB {epub.name} -> {mobi.name} (legacy MOBI fixture)")
+        convert(epub, mobi)
+        mobi_to_azw3 = OUT / f"{epub.stem}-mobi-input.azw3"
+        print(f"CONVERT MOBI {mobi.name} -> {mobi_to_azw3.name}")
+        convert(mobi, mobi_to_azw3)
+        info = inspect(mobi_to_azw3)
+        assert info["is_kf8"], info
+        assert info["records"] > 1, info
+        print(f"VALID {mobi_to_azw3.name}: records={info['records']} size={info['size']}")
 
     for azw3 in generated:
         out = OUT / f"{azw3.stem}-roundtrip.azw3"

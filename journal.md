@@ -120,3 +120,16 @@ Important caveats:
 - The `html5_parser` fallback is not full fidelity; for production we need either a Pyodide build of `html5-parser`, a robust replacement, or an EPUB3 nav parser that avoids that dependency.
 - This has not yet tested legacy MOBI6 input from a real `.mobi` file.
 - Outputs are structurally valid KF8/AZW3 by sanity checks, but not yet compared byte/structure-by-structure against a packaged `ebook-convert` binary.
+
+### Expanded MOBI and fixture coverage
+
+- Added a Qt-free `calibre.ebooks.oeb.transforms.rasterize` shim that raises `Unavailable`, matching the code path MOBI output already handles. This lets the experiment generate legacy MOBI6 fixtures without installing Qt.
+- Native pipeline now generates legacy `.mobi` fixtures from every generated EPUB and converts them back to AZW3 through `MOBIInput`.
+- Pyodide pipeline does the same: EPUB -> MOBI fixture -> MOBIInput -> AZW3.
+- Added more generated fixtures:
+  - `epub2-ncx.epub`: EPUB2/NCX-only, no EPUB3 nav.
+  - `rtl.epub`: Arabic/RTL metadata and RTL page progression.
+- Added structural tools:
+  - `experiments/azw3_summary.py`
+  - `experiments/compare_summaries.py`
+- Native-vs-Pyodide summary comparison mostly matches. Some round-trip outputs differ by a blank/padding record (`''` record prefix) and therefore record count / `first_non_text_record`; core KF8 structure remains valid. This should be normalized in future comparison logic.

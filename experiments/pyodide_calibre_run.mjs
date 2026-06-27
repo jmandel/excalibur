@@ -67,12 +67,24 @@ from inspect_azw3 import inspect
 
 fixtures = sorted(Path('/repo/fixtures/generated').glob('*.epub'))
 outdir = Path('/repo/experiments/pyodide-out')
+if outdir.exists():
+    import shutil
+    shutil.rmtree(outdir)
 outdir.mkdir(parents=True, exist_ok=True)
 for epub in fixtures:
     out = outdir / (epub.stem + '.azw3')
     print('PYODIDE CONVERT EPUB', epub.name, '->', out.name)
     convert(epub, out)
     info = inspect(out)
+    print('PYODIDE VALID', info)
+    assert info['is_kf8']
+    mobi = outdir / (epub.stem + '.mobi')
+    print('PYODIDE CONVERT EPUB', epub.name, '->', mobi.name, '(legacy MOBI fixture)')
+    convert(epub, mobi)
+    mobi_out = outdir / (epub.stem + '-mobi-input.azw3')
+    print('PYODIDE CONVERT MOBI', mobi.name, '->', mobi_out.name)
+    convert(mobi, mobi_out)
+    info = inspect(mobi_out)
     print('PYODIDE VALID', info)
     assert info['is_kf8']
 

@@ -11,6 +11,8 @@ Current generated fixtures:
 - `minimal.epub`: EPUB3 package with NCX, nav, two XHTML spine files, internal links.
 - `css-image.epub`: CSS stylesheet, image resource, two XHTML spine files.
 - `svg.epub`: external SVG resource referenced from XHTML.
+- `epub2-ncx.epub`: EPUB2 package with NCX and no EPUB3 nav.
+- `rtl.epub`: Arabic/RTL metadata, `dir=rtl`, and RTL page progression.
 
 ## Third-party fixtures
 

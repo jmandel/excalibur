@@ -292,7 +292,8 @@ Currently shim/replace:
 ### Next correctness work
 
 1. Compare Pyodide outputs to native-source outputs structurally, not byte-for-byte.
-2. Add more fixtures: EPUB2 NCX-only, malformed-ish XHTML, embedded fonts, RTL, real public-domain EPUB.
-3. Find or generate a legal legacy MOBI6 input fixture.
+2. Add more fixtures: EPUB2 NCX-only, malformed-ish XHTML, embedded fonts, RTL, real public-domain EPUB. **EPUB2 NCX-only and RTL added.**
+3. Find or generate a legal legacy MOBI6 input fixture. **Generated MOBI6 fixtures now work via calibre MOBI output with SVG rasterizer unavailable.**
 4. Replace the temporary `html5_parser` fallback with a more faithful parser story.
 5. Package only the needed calibre subset instead of mounting the whole repo.
+6. Normalize structural comparisons to ignore harmless padding-record variation.
