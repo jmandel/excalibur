@@ -18,7 +18,10 @@ TARBALLS = {
     'libxml2-2.12.9.tar.xz': 'https://download.gnome.org/sources/libxml2/2.12/libxml2-2.12.9.tar.xz',
     'libxslt-1.1.39.tar.xz': 'https://download.gnome.org/sources/libxslt/1.1/libxslt-1.1.39.tar.xz',
     'lcms2-2.16.tar.gz': 'https://github.com/mm2/Little-CMS/releases/download/lcms2.16/lcms2-2.16.tar.gz',
-    'freetype-2.13.2.tar.gz': 'https://download.savannah.gnu.org/releases/freetype/freetype-2.13.2.tar.gz',
+    'freetype-2.13.2.tar.gz': [
+        'https://download.savannah.gnu.org/releases/freetype/freetype-2.13.2.tar.gz',
+        'https://download.sourceforge.net/freetype/freetype-2.13.2.tar.gz',
+    ],
     'tiff-4.6.0.tar.gz': 'https://download.osgeo.org/libtiff/tiff-4.6.0.tar.gz',
     'libwebp-1.4.0.tar.gz': 'https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-1.4.0.tar.gz',
     'openjpeg-2.5.2.tar.gz': 'https://github.com/uclouvain/openjpeg/archive/refs/tags/v2.5.2.tar.gz',
@@ -47,13 +50,23 @@ def download(url: str, path: Path, attempts: int = 5) -> None:
             print(f'Download failed: {e}; retrying in {wait}s')
             time.sleep(wait)
 
-def ensure_tarball(url: str, path: Path) -> None:
+def ensure_tarball(urls: str | list[str], path: Path) -> None:
     if path.exists():
         if tarfile.is_tarfile(path):
             return
         print(f'Removing invalid cached archive: {path}')
         path.unlink()
-    download(url, path)
+    sources = [urls] if isinstance(urls, str) else urls
+    for index, url in enumerate(sources, start=1):
+        try:
+            if index > 1:
+                print(f'Trying alternate source for {path.name}')
+            download(url, path)
+            return
+        except (OSError, TimeoutError, urllib.error.URLError) as e:
+            if index == len(sources):
+                raise
+            print(f'Source failed for {path.name}: {e}')
 
 def run(cmd, cwd=None, env=None):
     print('+', ' '.join(map(str, cmd)))
