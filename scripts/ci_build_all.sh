@@ -14,6 +14,10 @@ if [[ ! -f third_party/calibre/src/calibre/__init__.py ]]; then
   git submodule update --init --recursive third_party/calibre
 fi
 
+echo "python: $(python3 --version)"
+echo "node: $(node --version) at $(command -v node)"
+echo "bun: $(bun --version) at $(command -v bun)"
+
 python3 scripts/static_wasi/build_wasi_libs.py
 python3 scripts/static_wasi/build_static_wasi_python.py
 python3 scripts/build_runtime_artifacts.py --android-precompile

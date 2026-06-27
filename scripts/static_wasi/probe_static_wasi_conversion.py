@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, json, shutil, subprocess, tempfile, time, zipfile
+import argparse, json, os, shutil, subprocess, tempfile, time, zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 RUNTIME_ZIP = ROOT / 'web/calibre-runtime.zip'
-NODE = shutil.which('node')
+NODE = os.environ.get('PROBE_NODE') or shutil.which('node')
 
 RUNNER = r'''
 const fs = require('fs');
@@ -94,6 +94,10 @@ def main() -> int:
     fixtures = sorted((ROOT / 'fixtures/generated').glob('*.epub'))
     if not args.generated_only:
         fixtures += sorted((ROOT / 'consumer-app/src/assets/samples').glob('*.epub'))
+    if not NODE:
+        raise SystemExit('node is required for this probe')
+    version = subprocess.run([NODE, '--version'], text=True, stdout=subprocess.PIPE, check=True).stdout.strip()
+    print(f'Using node {version} at {NODE}')
     failures = 0
     for f in fixtures:
         failures += run_fixture(f) != 0
