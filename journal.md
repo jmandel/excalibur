@@ -236,3 +236,9 @@ Important caveats:
   - Docs advise running Chicory/AOT on a dedicated thread with generous stack (example: 8 MiB), matching our stack-sensitive CPython workload.
 - Important distinction: Android AOT/compiler backend can improve execution speed, but it still starts from a wasm module parsed by Chicory. Therefore our Binaryen exnref translation remains necessary before AOT can help with this artifact.
 - Next Android direction after exnref packaging: try `android-aot` if credentials/access are available, or keep JVM/Android interpreter only for correctness probes.
+
+### Native Android WebAssembly runtime spike
+
+- Starting direct investigation of embedding a native WebAssembly runtime in the Android APK via NDK/JNI instead of relying on WebView or pure-JVM Chicory.
+- Candidate runtimes to assess: WasmEdge, Wasmer, Wasm3, Wasmtime/WAMR if useful.
+- First-pass criteria: Android embeddability, WASI support, WebAssembly EH/exnref compatibility for the static CPython artifact, expected performance versus Chicory, APK/ABI packaging complexity, and maintenance risk.
