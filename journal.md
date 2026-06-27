@@ -216,3 +216,12 @@ Important caveats:
   - `import browser_convert`: pass after shim fallback, but slow on JVM interpreter (~101s).
   - `fixtures/generated/minimal.epub` conversion: pass, generated valid-looking `/work/out.azw3` (~12 KiB), slow on JVM interpreter (~216s).
 - Next: make the exnref translation part of the reproducible build/runtime packaging and test in Chrome/browser plus fuller Node fixture set before switching Android assets.
+
+### Chicory conversion probe and WasmEdge fallback assessment
+
+- Checked the in-flight JVM Chicory conversion probe using `/tmp/python-exnref.wasm` against `fixtures/generated/minimal.epub`.
+- Result: conversion completed and produced `/tmp/chicory-work/out.azw3` (12 KiB). The output timestamp indicates roughly 216 seconds from probe setup to AZW3 creation for the tiny fixture.
+- This confirms the exnref-translated static WASI CPython/calibre runtime can parse, instantiate, import `browser_convert`, and complete an EPUB→AZW3 conversion under Chicory 1.7.5 with the WASI `os.replace`/`os.rename` copy fallback shim.
+- Performance is the blocker: import alone was about 101 seconds and the minimal conversion took roughly 3.5 minutes on the JVM Chicory interpreter. That is likely too slow for a pleasant native Android app unless Chicory AOT/JIT/runtime behavior is substantially faster on-device, which should not be assumed.
+- WasmEdge is now a credible fallback/investigation path: it would mean embedding a native runtime through JNI/NDK rather than pure Kotlin/Java. The upside is likely much better execution speed and mature WASI support; the cost is Android native packaging complexity, ABI-specific `.so` files, CMake/JNI glue, APK size, and needing to validate WebAssembly EH/exnref support for this CPython artifact.
+- Next recommendation: keep Chicory as the pure-JVM proof and integration scaffold, but immediately run a native WasmEdge Android feasibility spike before investing deeply in Chicory UI integration. First test should be host-side WasmEdge CLI/library with `/tmp/python-exnref.wasm` and the same preopens/args; if that works and is significantly faster, create an Android NDK JNI spike modeled after WasmEdge's APK embedding docs.
