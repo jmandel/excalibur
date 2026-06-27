@@ -90,3 +90,33 @@ Native dependency finding:
 Current limitation:
 
 - True legacy `.mobi` output fixture generation failed because MOBI output's MOBI6 path imports Qt SVG rasterization. This is not on the target output path, but we still need a legal legacy `.mobi` input fixture or a better MOBI-output workaround if we want old-MOBI input coverage.
+
+### Pyodide/WASM end-to-end reached
+
+- Installed Node LTS via documented `nodeenv` path and added `pyodide` npm dependency.
+- Added `experiments/pyodide_probe.mjs` to check Pyodide runtime/package availability.
+- Pyodide version: `0.28.3`, Python `3.13.2` on Emscripten.
+- Pyodide package findings:
+  - Available via `loadPackage`: `lxml`, `Pillow`, `python-dateutil`, `regex`, `beautifulsoup4`, `html5lib`, `webencodings`, `msgpack`, `tzdata`, `lzma`.
+  - Installable via `micropip`: `css-parser`, `chardet`, `tzlocal`.
+  - Not available directly: `html5-parser`; the runner currently stubs it with an `lxml.html` fallback sufficient for our fixtures.
+- Added `experiments/pyodide_calibre_run.mjs`.
+- The Pyodide runner mounts the repo via NODEFS, installs packages, injects the `html5_parser` fallback, imports the same `calibre_bootstrap`, and runs the same `convert_with_plumber`/`inspect_azw3` flow.
+
+Successful WASM conversions:
+
+- `minimal.epub` -> `minimal.azw3`
+- `css-image.epub` -> `css-image.azw3`
+- `svg.epub` -> `svg.azw3`
+- generated AZW3 round-trips through `MOBIInput` -> `AZW3Output`:
+  - `minimal.azw3` -> `minimal-roundtrip.azw3`
+  - `css-image.azw3` -> `css-image-roundtrip.azw3`
+  - `svg.azw3` -> `svg-roundtrip.azw3`
+
+This completes the initial proof that technique (A) works: a reduced calibre EPUB/AZW3-to-AZW3 pipeline can run end-to-end in WebAssembly through Pyodide, with default calibre Plumber transforms, for the sample fixture corpus.
+
+Important caveats:
+
+- The `html5_parser` fallback is not full fidelity; for production we need either a Pyodide build of `html5-parser`, a robust replacement, or an EPUB3 nav parser that avoids that dependency.
+- This has not yet tested legacy MOBI6 input from a real `.mobi` file.
+- Outputs are structurally valid KF8/AZW3 by sanity checks, but not yet compared byte/structure-by-structure against a packaged `ebook-convert` binary.

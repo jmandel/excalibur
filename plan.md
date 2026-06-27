@@ -241,3 +241,58 @@ Required WASM/runtime shims now known:
 Next big task:
 
 - Package this exact native bootstrap into a browser/Pyodide experiment and run `experiments/run_fixture_conversions.py` equivalent inside WASM.
+
+## Pyodide/WASM status
+
+Reached end-to-end Pyodide execution for the fixture corpus:
+
+```bash
+node experiments/pyodide_calibre_run.mjs
+```
+
+This runs inside Pyodide/WASM and performs:
+
+```text
+EPUB fixtures -> calibre Plumber defaults -> AZW3
+AZW3 outputs -> MOBIInput -> calibre Plumber defaults -> AZW3
+```
+
+The same structural `inspect_azw3.py` checks pass inside Pyodide.
+
+### Pyodide package plan
+
+Use `pyodide.loadPackage()` for:
+
+- `lxml`
+- `Pillow`
+- `python-dateutil`
+- `regex`
+- `beautifulsoup4`
+- `html5lib`
+- `webencodings`
+- `msgpack`
+- `tzdata`
+- `lzma`
+- `micropip`
+
+Use `micropip.install()` for:
+
+- `css-parser`
+- `chardet`
+- `tzlocal`
+
+Currently shim/replace:
+
+- `html5_parser`
+- `calibre_extensions.*`
+- narrow `calibre.customize.ui`
+- `calibre.utils.safe_atexit`
+- source-checkout localization helpers
+
+### Next correctness work
+
+1. Compare Pyodide outputs to native-source outputs structurally, not byte-for-byte.
+2. Add more fixtures: EPUB2 NCX-only, malformed-ish XHTML, embedded fonts, RTL, real public-domain EPUB.
+3. Find or generate a legal legacy MOBI6 input fixture.
+4. Replace the temporary `html5_parser` fallback with a more faithful parser story.
+5. Package only the needed calibre subset instead of mounting the whole repo.
