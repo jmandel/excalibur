@@ -15,15 +15,22 @@ PNG_1X1_RED = base64.b64decode(
 )
 
 
+def write_entry(z: zipfile.ZipFile, fn: str, data: bytes | str, compress_type: int) -> None:
+    if isinstance(data, str):
+        data = data.encode("utf-8")
+    info = zipfile.ZipInfo(fn, date_time=(2026, 6, 27, 0, 0, 0))
+    info.compress_type = compress_type
+    info.external_attr = 0o644 << 16
+    z.writestr(info, data)
+
+
 def write_epub(name: str, files: dict[str, bytes | str]) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     path = OUT / name
     with zipfile.ZipFile(path, "w") as z:
-        z.writestr("mimetype", "application/epub+zip", compress_type=zipfile.ZIP_STORED)
+        write_entry(z, "mimetype", "application/epub+zip", zipfile.ZIP_STORED)
         for fn, data in files.items():
-            if isinstance(data, str):
-                data = data.encode("utf-8")
-            z.writestr(fn, data, compress_type=zipfile.ZIP_DEFLATED)
+            write_entry(z, fn, data, zipfile.ZIP_DEFLATED)
     print(path)
 
 
