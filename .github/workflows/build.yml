@@ -50,8 +50,11 @@ jobs:
 
       - name: Install Android command-line tools, NDK, and CMake
         run: |
+          download() {
+            curl --fail --location --retry 5 --retry-all-errors --connect-timeout 30 --http1.1 -o "$1" "$2"
+          }
           mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
-          curl -L -o /tmp/android-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          download /tmp/android-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
           unzip -q /tmp/android-tools.zip -d /tmp/android-tools
           mv /tmp/android-tools/cmdline-tools "$ANDROID_SDK_ROOT/cmdline-tools/latest"
           yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
@@ -61,14 +64,17 @@ jobs:
 
       - name: Install WASI SDK, Binaryen, and Wasmtime
         run: |
+          download() {
+            curl --fail --location --retry 5 --retry-all-errors --connect-timeout 30 --http1.1 -o "$1" "$2"
+          }
           mkdir -p "$HOME/.local/share/wasmpy-build" .toolchain
-          curl -L -o /tmp/wasi-sdk.tar.gz "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/wasi-sdk-${WASI_SDK_VERSION}-x86_64-linux.tar.gz"
+          download /tmp/wasi-sdk.tar.gz "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/wasi-sdk-${WASI_SDK_VERSION}-x86_64-linux.tar.gz"
           tar -C "$HOME/.local/share/wasmpy-build" -xzf /tmp/wasi-sdk.tar.gz
           mv "$HOME/.local/share/wasmpy-build/wasi-sdk-${WASI_SDK_VERSION}-x86_64-linux" "$HOME/.local/share/wasmpy-build/wasi-sdk"
-          curl -L -o /tmp/binaryen.tar.gz "https://github.com/WebAssembly/binaryen/releases/download/version_${BINARYEN_VERSION}/binaryen-version_${BINARYEN_VERSION}-x86_64-linux.tar.gz"
+          download /tmp/binaryen.tar.gz "https://github.com/WebAssembly/binaryen/releases/download/version_${BINARYEN_VERSION}/binaryen-version_${BINARYEN_VERSION}-x86_64-linux.tar.gz"
           mkdir -p .toolchain/binaryen
           tar -C .toolchain/binaryen --strip-components=1 -xzf /tmp/binaryen.tar.gz
-          curl -L -o /tmp/wasmtime.tar.xz "https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz"
+          download /tmp/wasmtime.tar.xz "https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz"
           mkdir -p .toolchain/wasmtime
           tar -C .toolchain/wasmtime --strip-components=1 -xf /tmp/wasmtime.tar.xz
           .toolchain/binaryen/bin/wasm-opt --version
