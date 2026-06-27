@@ -21,11 +21,11 @@ Use numeric IP URLs. When Android is providing hotspot/tethering Wi-Fi, Kindle c
 
 ## Build
 
-This directory is a standard Gradle Android project. Build on a machine with JDK + Android SDK:
+This directory is a standard Kotlin/Gradle Android project. This VM has Android command-line tools installed under `/home/exedev/android-sdk`; `.bashrc` exports `ANDROID_HOME`, `ANDROID_SDK_ROOT`, and SDK tools on `PATH`.
 
 ```bash
 cd android-app
 ./gradlew assembleDebug
 ```
 
-Validation performed here: `javac -cp /usr/lib/android-sdk/platforms/android-23/android.jar app/src/main/java/dev/exe/kindleconverter/MainActivity.java` and `node --check` on the embedded app script. A full APK build still needs a normal Android SDK installation with the Gradle-selected compile SDK.
+Validation performed here: `./gradlew assembleDebug` and `node --check` on the embedded app script.

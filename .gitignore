@@ -11,3 +11,6 @@ node_modules/
 experiments/pyodide-out/
 consumer-app/node_modules/
 consumer-app/dist/
+
+.gradle/
+android-app/.gradle/
