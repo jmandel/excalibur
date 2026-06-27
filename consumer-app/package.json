@@ -1,0 +1,25 @@
+{
+  "name": "kindle-library-consumer-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --hot index.html",
+    "start": "bun index.html",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@types/bun": "latest",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "clsx": "2.1.1",
+    "idb": "8.0.3",
+    "lucide-react": "1.21.0",
+    "pyodide": "0.28.3",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "zustand": "5.0.14"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
+}
