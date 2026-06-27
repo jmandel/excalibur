@@ -26,7 +26,6 @@ import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
-import java.nio.charset.StandardCharsets
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.Executors
@@ -61,13 +60,7 @@ class MainActivity : Activity() {
         }
         server = KindleHttpServer(this).also { it.start() }
         webView.addJavascriptInterface(AndroidBridge(this), "AndroidKindle")
-        webView.loadDataWithBaseURL(
-            "https://kindle-library.local/",
-            assets.open("app/app.html").bufferedReader().use { it.readText() },
-            "text/html",
-            "UTF-8",
-            null,
-        )
+        webView.loadUrl("http://127.0.0.1:${server.port}/app/")
     }
 
     override fun onDestroy() {
@@ -150,10 +143,12 @@ class KindleHttpServer(private val ctx: Context) {
     @Volatile var port: Int = 0
     private var socket: ServerSocket? = null
 
-    fun start() = thread(name = "kindle-http") {
-        runCatching {
-            socket = ServerSocket(0).also { port = it.localPort }
-            while (!Thread.currentThread().isInterrupted) socket?.accept()?.use { handle(it) }
+    fun start() {
+        socket = ServerSocket(0).also { port = it.localPort }
+        thread(name = "kindle-http") {
+            runCatching {
+                while (!Thread.currentThread().isInterrupted) socket?.accept()?.use { handle(it) }
+            }
         }
     }
     fun stop() { runCatching { socket?.close() } }
@@ -165,6 +160,8 @@ class KindleHttpServer(private val ctx: Context) {
             val out = sock.getOutputStream()
             when {
                 path == "/" -> respond(out, "text/html; charset=utf-8", kindlePage(catalogJson).toByteArray())
+                path == "/app/" || path == "/app" -> respondAsset(out, "app/app.html", "text/html; charset=utf-8")
+                path.startsWith("/assets/") -> respondAsset(out, "app/" + path.removePrefix("/assets/"), assetMime(path))
                 path.startsWith("/catalog.json") -> respond(out, "application/json", catalogJson.toByteArray())
                 path.startsWith("/download/") -> download(out, path)
                 else -> respond(out, "text/plain", "Not found".toByteArray(), "404 Not Found")
@@ -193,6 +190,14 @@ class KindleHttpServer(private val ctx: Context) {
         if (actual?.exists() == true) respondFile(out, actual) else respond(out, "text/plain", "Not found".toByteArray(), "404 Not Found")
     }
 
+    private fun respondAsset(out: OutputStream, assetPath: String, type: String) {
+        runCatching {
+            ctx.assets.open(assetPath).use { input ->
+                val bytes = input.readBytesCompat()
+                respond(out, type, bytes)
+            }
+        }.getOrElse { respond(out, "text/plain", "Not found".toByteArray(), "404 Not Found") }
+    }
     private fun respondFile(out: OutputStream, file: File) {
         out.write("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: ${file.length()}\r\nContent-Disposition: attachment; filename=\"${file.name}\"\r\nConnection: close\r\n\r\n".toByteArray())
         FileInputStream(file).use { it.copyTo(out) }
@@ -200,6 +205,15 @@ class KindleHttpServer(private val ctx: Context) {
     private fun respond(out: OutputStream, type: String, bytes: ByteArray, status: String = "200 OK") {
         out.write("HTTP/1.1 $status\r\nContent-Type: $type\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n".toByteArray())
         out.write(bytes)
+    }
+
+    private fun assetMime(path: String) = when {
+        path.endsWith(".js") -> "application/javascript"
+        path.endsWith(".mjs") -> "application/javascript"
+        path.endsWith(".wasm") -> "application/wasm"
+        path.endsWith(".zip") -> "application/zip"
+        path.endsWith(".whl") -> "application/octet-stream"
+        else -> "application/octet-stream"
     }
 
     private fun kindlePage(catalog: String) = """<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width'><title>Kindle Library</title><style>body{font-family:serif;background:#f8f3e8;color:#211b13;margin:18px;line-height:1.35}h1{font-size:26px}input{font-size:18px;width:96%;padding:8px;border:1px solid #8b7355;background:#fffaf0}.book{border-top:1px solid #cdbb9e;padding:12px 0}.book:first-of-type{border-top:3px solid #4b3826}a{font-size:20px;color:#111;display:inline-block;padding:8px 0}.meta{color:#665844;font-size:14px}.tag{font-size:13px;background:#eee0c9;padding:2px 5px;margin-right:4px}</style></head><body><h1>Kindle downloads</h1><p>Newest converted AZW3 books appear first. Tap a title to download.</p><input id='q' placeholder='Filter title, author, tag'><div id='books'></div><script>var books=$catalog;function r(){var q=document.getElementById('q').value.toLowerCase(),root=document.getElementById('books');root.innerHTML='';books.filter(function(b){return (b.title+' '+(b.author||'')+' '+(b.tags||[]).join(' ')).toLowerCase().indexOf(q)>=0}).forEach(function(b,i){var d=document.createElement('div');d.className='book';d.innerHTML=(i==0?'<div class=meta>Latest Kindle-ready book</div>':'')+'<a href="/download/'+b.id+'">'+b.title+'</a><div class=meta>'+(b.author||'')+' · '+Math.round((b.size||0)/1024)+' KB</div><div>'+((b.tags||[]).map(function(t){return '<span class=tag>'+t+'</span>'}).join(''))+'</div>';root.appendChild(d)})}document.getElementById('q').oninput=r;r()</script></body></html>"""
