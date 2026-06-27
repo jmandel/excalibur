@@ -204,3 +204,15 @@ Important caveats:
   - exports: 2
   - tags: 1
 - This proves the nonlegacy EH path is actionable as a post-link Binaryen transform. Next step: instantiate/start the translated artifact under Chicory+WASI.
+
+### Chicory exnref startup and minimal conversion
+
+- Translated exnref artifact also works under Node/V8 for `fixtures/generated/minimal.epub` conversion, including without the previous `--experimental-wasm-exnref` flag. This suggests a single exnref artifact may be viable across Node/browser/Android.
+- Added a JVM-side Chicory probe shape and ran it against `/tmp/python-exnref.wasm`.
+- Chicory 1.7.5 results:
+  - `print()` startup: pass.
+  - `import browser_convert`: initially failed because Chicory's WASI `path_rename/os.replace` returned ENOTSUP for calibre atomic config writes.
+  - Added WASI shim fallback for `os.replace`: if replace/rename return errno 58, copy destination contents and unlink source.
+  - `import browser_convert`: pass after shim fallback, but slow on JVM interpreter (~101s).
+  - `fixtures/generated/minimal.epub` conversion: pass, generated valid-looking `/work/out.azw3` (~12 KiB), slow on JVM interpreter (~216s).
+- Next: make the exnref translation part of the reproducible build/runtime packaging and test in Chrome/browser plus fuller Node fixture set before switching Android assets.

@@ -19,6 +19,30 @@ def install_pre_import() -> None:
     # uses them for best-effort permissions on config/temp files.
     os.chmod = lambda *a, **k: None  # type: ignore[assignment]
     os.fchmod = lambda *a, **k: None  # type: ignore[attr-defined]
+    real_replace = getattr(os, 'replace', None)
+    def wasi_replace(src, dst, *args, **kwargs):
+        try:
+            if real_replace is not None:
+                return real_replace(src, dst, *args, **kwargs)
+        except OSError as e:
+            # Some WASI hosts, including Chicory's current WASI layer, expose
+            # path_rename/path_replace but return ENOTSUP for atomic replace.
+            if getattr(e, 'errno', None) not in (58,):
+                raise
+        try:
+            os.unlink(dst)
+        except FileNotFoundError:
+            pass
+        try:
+            return os.rename(src, dst)
+        except OSError as e:
+            if getattr(e, 'errno', None) not in (58,):
+                raise
+            with open(src, 'rb') as r, open(dst, 'wb') as w:
+                w.write(r.read())
+            os.unlink(src)
+            return None
+    os.replace = wasi_replace  # type: ignore[assignment]
     _install_multiprocessing_stub()
     _install_threadpool_stub()
     _install_zoneinfo_stub()
