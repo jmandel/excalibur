@@ -1,0 +1,45 @@
+python 3.12.0 (tags/v3.12.0:0fb18b0, Dec 11 2023, 11:45:15) [Clang 16.0.0 ] wasi
+import ok zlib
+import ok bz2
+import ok zipfile
+import ok lxml
+import ok PIL
+import ok regex
+import ok bs4
+import ok html5lib
+import ok msgpack
+import ok dateutil
+bootstrap ok
+KINDLE_PROFILES_OK
+kindle	Kindle	screen=(525, 640)	dpi=168.451	fbase=16
+kindle_dx	Kindle DX	screen=(744, 1022)	dpi=150.0	fbase=12
+kindle_fire	Kindle Fire	screen=(570, 1016)	dpi=169.0	fbase=12
+kindle_oasis	Kindle Oasis	screen=(1264, 1680)	dpi=300.0	fbase=16
+kindle_pw	Kindle PaperWhite	screen=(658, 940)	dpi=212.0	fbase=16
+kindle_pw3	Kindle PaperWhite 3	screen=(1072, 1430)	dpi=300.0	fbase=16
+kindle_scribe	Kindle Scribe	screen=(1860, 2480)	dpi=300.0	fbase=16
+kindle_voyage	Kindle Voyage	screen=(1080, 1430)	dpi=300.0	fbase=16
+browser_convert ok
+Conversion options changed from defaults:
+  output_profile: 'kindle_pw3'
+InputFormatPlugin: EPUB Input running
+on /work/minimal.epub
+EPUB appears to be invalid ZIP file, trying a more forgiving ZIP parser
+Traceback (most recent call last):
+  File "/probe.py", line 165, in <module>
+    print(browser_convert.convert_file('/work/minimal.epub','/work/minimal.azw3', {'output_profile':'kindle_pw3'}))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/experiments/browser_convert.py", line 60, in convert_file
+    convert(inp, out, options=options or {})
+  File "/app/experiments/convert_with_plumber.py", line 32, in convert
+    plumber.run()
+  File "/app/third_party/calibre/src/calibre/ebooks/conversion/plumber.py", line 1087, in run
+    self.oeb = self.input_plugin(stream, self.opts,
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/third_party/calibre/src/calibre/customize/conversion.py", line 241, in __call__
+    ret = self.convert(stream, options, file_ext,
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/third_party/calibre/src/calibre/ebooks/conversion/plugins/epub_input.py", line 357, in convert
+    raise ValueError('No valid entries in the spine of this EPUB')
+ValueError: No valid entries in the spine of this EPUB
+convert/import failed
