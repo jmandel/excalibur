@@ -225,3 +225,14 @@ Important caveats:
 - Performance is the blocker: import alone was about 101 seconds and the minimal conversion took roughly 3.5 minutes on the JVM Chicory interpreter. That is likely too slow for a pleasant native Android app unless Chicory AOT/JIT/runtime behavior is substantially faster on-device, which should not be assumed.
 - WasmEdge is now a credible fallback/investigation path: it would mean embedding a native runtime through JNI/NDK rather than pure Kotlin/Java. The upside is likely much better execution speed and mature WASI support; the cost is Android native packaging complexity, ABI-specific `.so` files, CMake/JNI glue, APK size, and needing to validate WebAssembly EH/exnref support for this CPython artifact.
 - Next recommendation: keep Chicory as the pure-JVM proof and integration scaffold, but immediately run a native WasmEdge Android feasibility spike before investing deeply in Chicory UI integration. First test should be host-side WasmEdge CLI/library with `/tmp/python-exnref.wasm` and the same preopens/args; if that works and is significantly faster, create an Android NDK JNI spike modeled after WasmEdge's APK embedding docs.
+
+### Chicory Android AOT/compiler backend note
+
+- User pointed out `chicory-compiler-android` / Android AOT mode.
+- Checked current docs:
+  - General Chicory docs distinguish interpreter, runtime compilation, and build-time compilation to Java bytecode.
+  - `dylibso/chicory-compiler-android` is an experimental Android backend packaged as `com.dylibso.chicory:android-aot:0.0.1` through GitHub Package Registry, not plain Maven Central.
+  - The Android backend is used by adding `AotAndroidMachine::new` as Chicory's `MachineFactory`.
+  - Docs advise running Chicory/AOT on a dedicated thread with generous stack (example: 8 MiB), matching our stack-sensitive CPython workload.
+- Important distinction: Android AOT/compiler backend can improve execution speed, but it still starts from a wasm module parsed by Chicory. Therefore our Binaryen exnref translation remains necessary before AOT can help with this artifact.
+- Next Android direction after exnref packaging: try `android-aot` if credentials/access are available, or keep JVM/Android interpreter only for correctness probes.
