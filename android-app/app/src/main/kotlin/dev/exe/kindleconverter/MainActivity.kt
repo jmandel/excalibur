@@ -17,7 +17,12 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
 import dev.exe.kindleconverter.wasm.WasmSpike
+import dev.exe.kindleconverter.wasmtime.WasmtimeRuntime
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -37,10 +42,21 @@ class MainActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var server: KindleHttpServer
     private val io = Executors.newSingleThreadExecutor()
+    private lateinit var wasmtime: WasmtimeRuntime
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        wasmtime = WasmtimeRuntime(this)
+        if (intent?.getBooleanExtra("web", false) == true) {
+            showWebViewUi()
+        } else {
+            showNativeWasmtimeDashboard()
+        }
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun showWebViewUi() {
         webView = WebView(this)
         setContentView(FrameLayout(this).apply { addView(webView, FrameLayout.LayoutParams(-1, -1)) })
         webView.settings.apply {
@@ -64,8 +80,61 @@ class MainActivity : Activity() {
         webView.loadUrl("http://127.0.0.1:${server.port}/app/")
     }
 
+
+    private fun showNativeWasmtimeDashboard() {
+        server = KindleHttpServer(this).also { it.start() }
+        val log = TextView(this).apply { textSize = 14f; setTextIsSelectable(true) }
+        fun append(line: String) = runOnUiThread { log.append(line + "\n") }
+        val probe = Button(this).apply { text = "Run native Wasmtime CPython/calibre proof" }
+        val openWeb = Button(this).apply { text = "Open legacy WebView UI"; setOnClickListener { startActivity(Intent(this@MainActivity, MainActivity::class.java).putExtra("web", true)) } }
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(28, 28, 28, 28)
+            addView(TextView(this@MainActivity).apply {
+                text = "Kindle Converter Native Runtime\nPreferred path: Kotlin → JNI/NDK → Wasmtime → shared exnref WASI CPython/calibre runtime.\nServer: ${serverUrlsJson(this@MainActivity, server.port)}"
+                textSize = 18f
+            })
+            addView(probe)
+            addView(openWeb)
+            addView(ScrollView(this@MainActivity).apply { addView(log) }, LinearLayout.LayoutParams(-1, 0, 1f))
+        }
+        setContentView(layout)
+        probe.setOnClickListener {
+            probe.isEnabled = false
+            io.execute {
+                try {
+                    append("Preparing runtime asset shared with web app...")
+                    val root = wasmtime.prepareRuntime { append(it) }
+                    val manifest = File(root, "runtime-manifest.json").takeIf { it.exists() }?.readText()?.trim().orEmpty()
+                    append("Runtime: ${root.absolutePath}")
+                    append(manifest)
+                    val sample = File(filesDir, "native-samples/minimal.epub").also { it.parentFile?.mkdirs() }
+                    assets.open("minimal.epub").use { input -> sample.outputStream().use { input.copyTo(it) } }
+                    val out = File(filesDir, "converted/native-minimal.azw3").also { it.parentFile?.mkdirs() }
+                    append("Running native conversion...")
+                    val started = System.currentTimeMillis()
+                    val r = wasmtime.convert(sample, out, File(filesDir, "wasmtime-work"))
+                    val elapsed = System.currentTimeMillis() - started
+                    append("exit=${r.exitCode} ok=${r.ok} precompiled=${r.usedPrecompiled} compileMs=${r.compileMs} runMs=${r.runMs} wallMs=$elapsed")
+                    if (r.stdout.isNotBlank()) append("stdout:\n${r.stdout}")
+                    if (r.stderr.isNotBlank()) append("stderr:\n${r.stderr}")
+                    if (r.error.isNotBlank()) append("error:\n${r.error}")
+                    if (out.exists()) {
+                        append("AZW3 ready: ${out.absolutePath} (${out.length()} bytes)")
+                        server.catalogJson = "[{\"id\":\"native-minimal\",\"title\":\"Native Wasmtime minimal proof\",\"author\":\"calibre via WASI CPython\",\"size\":${out.length()},\"tags\":[\"native\",\"wasmtime\",\"azw3\"],\"azw3Path\":${json(out.absolutePath)}}]"
+                        append("Kindle download URL(s): ${serverUrlsJson(this@MainActivity, server.port)}")
+                    }
+                } catch (e: Throwable) {
+                    append("FAILED: ${e.stackTraceToString()}")
+                } finally {
+                    runOnUiThread { probe.isEnabled = true }
+                }
+            }
+        }
+    }
+
     override fun onDestroy() {
-        server.stop()
+        if (::server.isInitialized) server.stop()
         io.shutdownNow()
         super.onDestroy()
     }

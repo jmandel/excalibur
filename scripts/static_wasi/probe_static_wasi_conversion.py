@@ -4,7 +4,7 @@ import json, shutil, subprocess, tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-PYWASM = ROOT / 'experiments/static-wasi-python/Python-3.12.0/builddir/wasi/python.wasm'
+PYWASM = ROOT / 'build/runtime/python-exnref.wasm'
 SRC = ROOT / 'experiments/static-wasi-python/Python-3.12.0'
 THIRD_PARTY_SITE = ROOT / 'experiments/static-wasi-python/third-party-site'
 NODE = shutil.which('node')
@@ -38,12 +38,12 @@ const wasi = new WASI({
 
 def run_fixture(fixture: Path) -> int:
     if not NODE:
-        raise SystemExit('node is required for wasm exception support in this probe')
+        raise SystemExit('node is required for this probe')
     with tempfile.TemporaryDirectory() as td:
         work = Path(td)
         shutil.copy2(fixture, work / fixture.name)
         runner = work / 'run.js'; runner.write_text(RUNNER)
-        cmd = [NODE, '--experimental-wasm-exnref', '--stack-size=32768', str(runner), str(PYWASM), str(SRC), str(THIRD_PARTY_SITE), str(ROOT), str(work), fixture.name]
+        cmd = [NODE, '--stack-size=32768', str(runner), str(PYWASM), str(SRC), str(THIRD_PARTY_SITE), str(ROOT), str(work), fixture.name]
         cp = subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         print(f'=== {fixture.name} ===')
         print(cp.stdout)

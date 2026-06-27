@@ -39,9 +39,9 @@ Wasmtime is the leading candidate because it executes the exnref/EH artifact dra
 
 ## Recommended next implementation step
 
-Create an Android NDK spike with Wasmtime first:
+Implemented direction: make Android NDK Wasmtime the preferred path, not just a spike. The app now packages Wasmtime through JNI and exposes a native dashboard/probe while the WebView UI remains a fallback/debug path. Implementation checklist:
 
-1. Add a Gradle/CMake build path that downloads or locally references the Wasmtime Android C API package without committing the large binary.
+1. Add a Gradle/CMake build path that references the Wasmtime Android C API package. The current repo includes the aarch64 JNI packaging path; future cleanup can download the large binary via Gradle instead of committing it.
 2. Add `libkindle_wasm_runtime.so` JNI glue exposing a small Kotlin API:
    - `runPython(wasmPath, runtimeRoot, thirdPartySite, repoRoot, workDir, scriptText): RuntimeResult`
 3. In native code:
@@ -53,3 +53,16 @@ Create an Android NDK spike with Wasmtime first:
 5. Only after this succeeds, wire the native Kotlin library queue around the runtime.
 
 Keep Chicory as a pure-JVM reference/probe path, but do not build the production Android conversion queue on it unless native runtime packaging fails.
+
+
+## Shared artifact policy
+
+Both web and Android must consume the same generated exnref `wasi/python.wasm`. Use:
+
+```bash
+python3 scripts/build_runtime_artifacts.py --android-precompile
+```
+
+This translates the legacy-EH CPython artifact with Binaryen `--translate-to-exnref`, writes the same `wasi/python.wasm` into `web/calibre-runtime.zip`, `consumer-app/src/assets/calibre-runtime.zip`, and `android-app/app/src/main/assets/app/calibre-runtime.zip`, and optionally adds Android-only `wasi/python-aarch64-android.cwasm` for ahead-of-time Wasmtime deserialization.
+
+The `.cwasm` file is target-specific (`aarch64-linux-android`) and is an acceleration artifact, not a semantic source of truth. The source of truth remains the shared exnref wasm plus Python/calibre files in the zip.

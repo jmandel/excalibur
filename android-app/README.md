@@ -1,6 +1,6 @@
 # Kindle Library Android
 
-Native Android shell for the browser calibre/Pyodide converter. It is intentionally a WebView-hosted app so the same WASM conversion pipeline can run on Android while native code handles:
+Native Android Kindle library manager. The preferred runtime path is now native Kotlin plus JNI/NDK Wasmtime running the same exnref static WASI CPython/calibre artifact used by the web app. The older WebView UI remains available as a fallback/debug screen while native UI is built out.
 
 - Android document picker imports into app-private storage.
 - Local converted AZW3 file storage.
@@ -28,4 +28,4 @@ cd android-app
 ./gradlew assembleDebug
 ```
 
-Validation performed here: `./gradlew assembleDebug` and `node --check` on the embedded app script.
+Validation performed here: `./gradlew assembleDebug` and web/Node runtime probes. Runtime assets are generated programmatically by `scripts/build_runtime_artifacts.py`; use `--android-precompile` to embed the aarch64 Wasmtime `.cwasm` artifact in the Android runtime zip.
