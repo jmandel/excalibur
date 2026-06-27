@@ -150,3 +150,16 @@ Important caveats:
   - `margin_right=0`
   - `base_font_size=14`
   - `dont_compress=true`
+
+### Android native app plan resumed
+
+- Added `android-app/PLAN.md` to track the native Kotlin Android direction:
+  - prove the optimized static WASI CPython/calibre runtime under Android/Chicory first;
+  - then build native library/import/conversion/server UI around that proof;
+  - retain numeric IP URLs as primary and mDNS/Bonjour as best-effort for Kindle/tethering cases.
+- Current Android app state observed:
+  - still WebView-hosted for the main app;
+  - includes a simple HTTP server and IP URL discovery;
+  - includes Chicory runtime/WASI dependencies;
+  - includes a tiny `add.wasm` `WasmSpike` smoke test.
+- Next step: replace/extend `WasmSpike` with a real `python.wasm` startup/import/conversion probe and journal the result.
