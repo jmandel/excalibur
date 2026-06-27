@@ -91,6 +91,39 @@ def cmake_build(src, bname, args, env):
     run(['cmake','--install',b], env=env)
     return b
 
+def build_libjpeg_turbo(src, env, sjlj):
+    # libjpeg-turbo 3.0.3 does not have a WITH_TOOLS option. Its default
+    # static "all" target links example/tool executables, which is unnecessary
+    # for our static Pillow build and fails under WASI without extra setjmp
+    # linker flags. Build just the static library and install the needed files.
+    b = BUILD / 'libjpeg-turbo-build'
+    if b.exists(): shutil.rmtree(b)
+    run([
+        'cmake', '-S', src, '-B', b,
+        f'-DCMAKE_TOOLCHAIN_FILE={toolchain()}',
+        f'-DCMAKE_INSTALL_PREFIX={PREFIX}',
+        '-DBUILD_SHARED_LIBS=OFF',
+        '-DENABLE_SHARED=OFF',
+        '-DENABLE_STATIC=ON',
+        '-DWITH_JPEG8=ON',
+        '-DWITH_SIMD=OFF',
+        '-DWITH_TURBOJPEG=OFF',
+        f'-DCMAKE_C_FLAGS={sjlj}',
+        f'-DCMAKE_EXE_LINKER_FLAGS={sjlj}',
+    ], env=env)
+    run(['cmake','--build',b,'--target','jpeg-static','-j',str(os.cpu_count() or 2)], env=env)
+    (PREFIX/'include').mkdir(exist_ok=True)
+    (PREFIX/'lib').mkdir(exist_ok=True)
+    (PREFIX/'lib/pkgconfig').mkdir(parents=True, exist_ok=True)
+    shutil.copy2(b/'libjpeg.a', PREFIX/'lib/libjpeg.a')
+    for header in ['jerror.h', 'jmorecfg.h', 'jpeglib.h']:
+        shutil.copy2(src/header, PREFIX/f'include/{header}')
+    shutil.copy2(b/'jconfig.h', PREFIX/'include/jconfig.h')
+    pc = b/'pkgscripts/libjpeg.pc'
+    if pc.exists():
+        shutil.copy2(pc, PREFIX/'lib/pkgconfig/libjpeg.pc')
+    return b
+
 def main():
     if not (WASI_SDK / 'bin/clang').exists():
         raise SystemExit(f'WASI SDK not found at {WASI_SDK}; install wasmpy-build first')
@@ -107,7 +140,7 @@ def main():
     b = unpack('bzip2-1.0.8.tar.gz'); run(['make','-j2',f'CC={cc}',f'AR={env["AR"]}',f'RANLIB={env["RANLIB"]}','libbz2.a'], b); (PREFIX/'include').mkdir(exist_ok=True); (PREFIX/'lib').mkdir(exist_ok=True); shutil.copy2(b/'bzlib.h', PREFIX/'include/bzlib.h'); shutil.copy2(b/'libbz2.a', PREFIX/'lib/libbz2.a')
     x = unpack('xz-5.4.6.tar.gz'); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static','--disable-threads','--disable-xz','--disable-xzdec','--disable-lzmadec','--disable-lzmainfo','--disable-scripts','--disable-doc','--disable-nls'], x, env); run(['make','-j2'], x, env); run(['make','install'], x, env)
 
-    jpeg = unpack('jpeg-3.0.3.tar.gz', 'libjpeg-turbo-3.0.3'); jb = cmake_build(jpeg, 'libjpeg-turbo-build', ['-DENABLE_SHARED=OFF','-DWITH_JPEG8=ON','-DWITH_SIMD=OFF','-DWITH_TOOLS=OFF','-DWITH_TESTS=OFF',f'-DCMAKE_C_FLAGS={sjlj}',f'-DCMAKE_EXE_LINKER_FLAGS={sjlj}'], env_sjlj); shutil.copy2(jb/'libjpeg.a', PREFIX/'lib/libjpeg.a')
+    jpeg = unpack('jpeg-3.0.3.tar.gz', 'libjpeg-turbo-3.0.3'); build_libjpeg_turbo(jpeg, env_sjlj, sjlj)
     png = unpack('libpng-1.6.43.tar.gz'); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static'], png, env_sjlj); run(['make','-j2','libpng16.la'], png, env_sjlj); run(['make','install-libLTLIBRARIES','install-pkgincludeHEADERS','install-binSCRIPTS','install-pkgconfigDATA'], png, env_sjlj)
     lcms = unpack('lcms2-2.16.tar.gz', 'lcms2-2.16'); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static'], lcms, env); run(['make','-j2'], lcms, env); run(['make','install'], lcms, env)
     ft = unpack('freetype-2.13.2.tar.gz'); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static','--without-harfbuzz','--without-brotli'], ft, env_sjlj); run(['make','-j2'], ft, env_sjlj); run(['make','install'], ft, env_sjlj)
