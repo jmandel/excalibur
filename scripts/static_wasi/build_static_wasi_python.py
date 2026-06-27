@@ -327,6 +327,8 @@ def patch_wasi_makefile():
     data = makefile.read_text()
     data = data.replace('-z stack-size=524288', '-z stack-size=8388608')
     data = data.replace('--initial-memory=10485760', '--initial-memory=134217728')
+    # Keep CPython/core and native modules optimized so browser V8's fixed host
+    # call stack is not exhausted by unoptimized eval/import paths.
     makefile.write_text(data)
 
 def write_setup_local():
@@ -353,9 +355,7 @@ def main():
         target_env['CPPFLAGS'] = f'-I{inc} ' + target_env.get('CPPFLAGS', '')
         target_env['LDFLAGS'] = f'-L{lib} -L{WASI_SDK / "share/wasi-sysroot/lib/wasm32-wasip1"} ' + target_env.get('LDFLAGS', '')
         target_env['PKG_CONFIG_PATH'] = str(pc)
-    # lxml's generated etree.c is enormous; compiling it at CPython's default
-    # -O3 exhausts this VM. Keep target C extension optimization modest.
-    target_env['CFLAGS'] = '-O0 -g0 -mllvm -wasm-enable-sjlj -D_WASI_EMULATED_PROCESS_CLOCKS ' + target_env.get('CFLAGS', '')
+    target_env['CFLAGS'] = '-O2 -g0 -mllvm -wasm-enable-sjlj -D_WASI_EMULATED_PROCESS_CLOCKS ' + target_env.get('CFLAGS', '')
     target_env['LDFLAGS'] = target_env.get('LDFLAGS', '') + ' -mllvm -wasm-enable-sjlj -lsetjmp -lwasi-emulated-process-clocks'
     target_env['MAKEFLAGS'] = '-j1'
     if args.clean:
@@ -363,7 +363,11 @@ def main():
     run([sys.executable, './Tools/wasm/wasm_build.py', 'wasi', 'configure'], cwd=SRC, env=target_env)
     patch_wasi_makefile()
     write_setup_local()
-    run([sys.executable, './Tools/wasm/wasm_build.py', '--clean', 'wasi', 'compile'], cwd=SRC, env=target_env)
+    # wasm_build.py's generic `wasi compile` invokes `make all`; with our
+    # generated static third-party MODOBJS, that target can skip rebuilding the
+    # custom objects after a clean while config.o still references their
+    # PyInit_* symbols. Build the archive and executable targets explicitly.
+    run(['make', '-j1', 'libpython3.12.a', 'python.wasm'], cwd=SRC / 'builddir/wasi', env=target_env)
     print(SRC / 'builddir/wasi/python.wasm')
 
 if __name__ == '__main__':
