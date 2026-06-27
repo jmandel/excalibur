@@ -171,3 +171,11 @@ Important caveats:
   - `MalformedException: illegal opcode, op value 06`
 - Interpretation: opcode `0x06` is `try` in the legacy WebAssembly exception handling proposal used by the WASI SDK SJLJ/setjmp path. Chicory documentation says exception handling exists in recent releases, but Chicory 1.7.5 still rejects this artifact's exception encoding in our local probe.
 - Next step: investigate whether a newer/configured Chicory parser/runtime can accept this exception encoding; if not, build/test a no-wasm-exception CPython variant or choose another Android WASM host/fallback path.
+
+### Official EH flag attempt
+
+- Tried rebuilding static WASI CPython with `-mllvm -wasm-use-legacy-eh=false` in addition to `-mllvm -wasm-enable-sjlj`.
+- Build completed after a second explicit `make -j1 libpython3.12.a python.wasm` due to the same custom static MODOBJS first-link ordering issue.
+- Chicory parse result was unchanged: `illegal opcode, op value 06`.
+- Conclusion: the WASI SDK SJLJ path still emits the legacy exception `try` opcode that Chicory 1.7.5 rejects, even with the official-EH flag.
+- Next experiment: attempt a no-SJLJ/no-wasm-EH CPython build and see whether it compiles/runs enough of our conversion path.
