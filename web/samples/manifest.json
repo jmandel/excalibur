@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Alice's Adventures in Wonderland",
+    "file": "alice-wonderland.epub",
+    "author": "Lewis Carroll",
+    "source": "https://www.gutenberg.org/ebooks/11",
+    "download": "https://www.gutenberg.org/ebooks/11.epub.images",
+    "license": "Project Gutenberg public domain/free use notice; public domain in the United States"
+  },
+  {
+    "name": "Through the Looking-Glass",
+    "file": "through-the-looking-glass.epub",
+    "author": "Lewis Carroll",
+    "source": "https://www.gutenberg.org/ebooks/12",
+    "download": "https://www.gutenberg.org/ebooks/12.epub.images",
+    "license": "Project Gutenberg public domain/free use notice; public domain in the United States"
+  },
+  {
+    "name": "The Hunting of the Snark",
+    "file": "hunting-of-the-snark.epub",
+    "author": "Lewis Carroll",
+    "source": "https://www.gutenberg.org/ebooks/13",
+    "download": "https://www.gutenberg.org/ebooks/13.epub.images",
+    "license": "Project Gutenberg public domain/free use notice; public domain in the United States"
+  }
+]

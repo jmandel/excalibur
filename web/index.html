@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kindle WASM Converter Demo</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Kindle WASM Converter Demo</h1>
+    <p>Local browser library. Upload EPUB/MOBI/AZW/AZW3, convert in-browser to AZW3, then download for Kindle.</p>
+  </header>
+
+  <section class="panel">
+    <h2>Runtime</h2>
+    <div class="row">
+      <button id="initBtn">Initialize converter</button>
+      <span id="runtimeStatus" class="status">Not loaded</span>
+    </div>
+    <progress id="runtimeProgress" max="100" value="0"></progress>
+    <pre id="log"></pre>
+  </section>
+
+  <section class="panel">
+    <h2>Conversion settings</h2>
+    <div class="grid">
+      <label class="wide">Kindle/device profile
+        <select id="outputProfile">
+          <option value="kindle_oasis" selected>Paperwhite 2024 / 12th gen / 7-inch 300ppi class</option>
+          <option value="default">Default / generic</option>
+          <option value="kindle">Kindle older/basic</option>
+          <option value="kindle_dx">Kindle DX</option>
+          <option value="kindle_fire">Kindle Fire tablet</option>
+          <option value="kindle_pw">Kindle PaperWhite older</option>
+          <option value="kindle_pw3">Kindle PaperWhite 3 / Voyage-era 300ppi</option>
+          <option value="kindle_scribe">Kindle Scribe</option>
+          <option value="kindle_voyage">Kindle Voyage</option>
+        </select>
+        <span class="hint">The 2024 Paperwhite is the 12th-gen Paperwhite with a 7-inch 300ppi screen. calibre has no explicit 12th-gen Paperwhite profile in this source tree; its <code>kindle_oasis</code> profile is the closest built-in 1264×1680/300ppi match.</span>
+      </label>
+      <label>Base font size
+        <input id="baseFontSize" type="number" value="0" step="0.5" min="0" />
+        <span class="hint">0 = Auto: use the selected device profile's calibre base font size. Set a number only to override.</span>
+      </label>
+      <label>Margin left
+        <input id="marginLeft" type="number" value="5" step="0.5" />
+      </label>
+      <label>Margin right
+        <input id="marginRight" type="number" value="5" step="0.5" />
+      </label>
+      <label>Margin top
+        <input id="marginTop" type="number" value="5" step="0.5" />
+      </label>
+      <label>Margin bottom
+        <input id="marginBottom" type="number" value="5" step="0.5" />
+      </label>
+      <label><input id="dontCompress" type="checkbox" /> Disable AZW3 compression</label>
+      <label><input id="noInlineToc" type="checkbox" /> No inline TOC</label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Books</h2>
+    <div class="row">
+      <input id="fileInput" type="file" multiple accept=".epub,.mobi,.azw,.azw3,.prc,.pobi" />
+      <button id="loadSamplesBtn">Load Lewis Carroll samples</button>
+    </div>
+    <p class="small">Bundled samples are Project Gutenberg Lewis Carroll EPUBs with images: Alice, Through the Looking-Glass, and The Hunting of the Snark.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Library</h2>
+    <div class="row">
+      <button id="refreshBtn">Refresh</button>
+      <button id="clearBtn" class="danger">Clear library</button>
+    </div>
+    <table>
+      <thead><tr><th>Book</th><th>Input</th><th>AZW3</th><th>Actions</th></tr></thead>
+      <tbody id="libraryBody"></tbody>
+    </table>
+  </section>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
