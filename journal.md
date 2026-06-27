@@ -301,3 +301,12 @@ Important caveats:
 - User confirmed Pyodide should no longer be needed and asked to reorganize/clean on the way to the first public push.
 - Plan: remove Pyodide-era Android assets and root Pyodide npm dependency, keep the web app on static WASI CPython only, keep Android on native Wasmtime by default, add a full GitHub Actions workflow that builds the WASI runtime artifacts, static web site, and Android APK, then publishes Pages plus APK artifact/release-style download artifact.
 - Also prepare the repo remote for `jmandel/excalibur` on the provided internal GitHub host and keep submodules initialized for calibre.
+
+### Removed Pyodide and added public CI/release scaffolding
+
+- Removed Pyodide-era product assets from the Android app (`app.html`, bundled Pyodide runtime/wheels, and pure-Python wheel assets). Android no longer exposes or launches the WebView/Pyodide path; it launches the native Wasmtime dashboard directly.
+- Removed root `package.json`/`package-lock.json` and the old Pyodide probe scripts. The web app remains Bun/React with static WASI CPython through `@bjorn3/browser_wasi_shim`; Android remains Kotlin + JNI/NDK + Wasmtime.
+- Added root `README.md` documenting the shared static WASI runtime pipeline, web build, Android build, and CI intent.
+- Added `scripts/ci_build_all.sh` and `.github/workflows/build.yml`. The workflow checks out submodules, installs WASI SDK, Binaryen, Wasmtime, Android SDK/NDK/CMake, builds the full static WASI CPython/calibre runtime from source, generates shared web/Android runtime zips plus Android `.cwasm`, validates Node conversion fixtures, builds the static web app, builds the Android APK, publishes the web app to GitHub Pages, and uploads/copies the APK under `public/downloads/excalibur-debug.apk`.
+- Patched static WASI build scripts to accept `WASI_SDK_PATH` and `WASMTIME` env vars so CI can use explicit downloaded toolchains instead of the VM-local `wasmpy-build` path.
+- Validation after cleanup: Android `assembleDebug` passes; consumer app `bun run typecheck` and `bun build index.html --outdir dist --target browser` pass; `scripts/static_wasi/probe_static_wasi_conversion.py` passes all generated fixtures plus bundled Lewis Carroll samples against the shared exnref wasm.

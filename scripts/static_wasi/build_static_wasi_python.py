@@ -8,8 +8,8 @@ WORK = ROOT / 'experiments/static-wasi-python'
 SRC = WORK / 'Python-3.12.0'
 TGZ = WORK / 'Python-3.12.0.tgz'
 PY_URL = 'https://www.python.org/ftp/python/3.12.0/Python-3.12.0.tgz'
-WASMTIME = ROOT / 'experiments/wasi-python-spike/wasmtime/wasmtime-v18.0.4-x86_64-linux/wasmtime'
-WASI_SDK = Path.home() / '.local/share/wasmpy-build/wasi-sdk'
+WASMTIME = Path(os.environ.get('WASMTIME', ROOT / '.toolchain/wasmtime/wasmtime'))
+WASI_SDK = Path(os.environ.get('WASI_SDK_PATH', Path.home() / '.local/share/wasmpy-build/wasi-sdk'))
 THIRD_PARTY_PREFIX = WORK / 'third-party-wasi'
 THIRD_PARTY_SRC = WORK / 'third-party-src'
 THIRD_PARTY_BUILD = WORK / 'third-party-build'
@@ -55,9 +55,7 @@ def ensure_source():
 def ensure_wasmtime():
     if WASMTIME.exists():
         return
-    run([sys.executable, str(ROOT / 'experiments/wasi_python_probe.py')], check=False)
-    if not WASMTIME.exists():
-        raise SystemExit(f'wasmtime not found at {WASMTIME}')
+    raise SystemExit(f'wasmtime not found at {WASMTIME}; set WASMTIME or install the CI toolchain')
 
 def regex_source_dir() -> Path:
     return THIRD_PARTY_BUILD / 'regex-2024.11.6'

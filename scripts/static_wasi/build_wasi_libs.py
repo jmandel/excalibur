@@ -8,7 +8,7 @@ WORK = ROOT / 'experiments/static-wasi-python'
 SRC = WORK / 'third-party-src'
 BUILD = WORK / 'third-party-build'
 PREFIX = WORK / 'third-party-wasi'
-WASI_SDK = Path.home() / '.local/share/wasmpy-build/wasi-sdk'
+WASI_SDK = Path(os.environ.get('WASI_SDK_PATH', Path.home() / '.local/share/wasmpy-build/wasi-sdk'))
 TARBALLS = {
     'zlib-1.3.1.tar.gz': 'https://zlib.net/fossils/zlib-1.3.1.tar.gz',
     'bzip2-1.0.8.tar.gz': 'https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz',

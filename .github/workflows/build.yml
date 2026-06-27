@@ -1,0 +1,99 @@
+name: Build web and Android
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+env:
+  WASI_SDK_VERSION: "33.0"
+  BINARYEN_VERSION: "130"
+  WASMTIME_VERSION: "46.0.1"
+  ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
+  ANDROID_HOME: ${{ github.workspace }}/android-sdk
+  JAVA_VERSION: "21"
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: false
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install host packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config autoconf automake libtool curl python3 python3-venv unzip zip
+
+      - name: Install Android command-line tools, NDK, and CMake
+        run: |
+          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          curl -L -o /tmp/android-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q /tmp/android-tools.zip -d /tmp/android-tools
+          mv /tmp/android-tools/cmdline-tools "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" "platforms;android-35" "build-tools;35.0.0" \
+            "ndk;27.2.12479018" "cmake;3.22.1"
+
+      - name: Install WASI SDK, Binaryen, and Wasmtime
+        run: |
+          mkdir -p "$HOME/.local/share/wasmpy-build" .toolchain
+          curl -L -o /tmp/wasi-sdk.tar.gz "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/wasi-sdk-${WASI_SDK_VERSION}-x86_64-linux.tar.gz"
+          tar -C "$HOME/.local/share/wasmpy-build" -xzf /tmp/wasi-sdk.tar.gz
+          mv "$HOME/.local/share/wasmpy-build/wasi-sdk-${WASI_SDK_VERSION}-x86_64-linux" "$HOME/.local/share/wasmpy-build/wasi-sdk"
+          curl -L -o /tmp/binaryen.tar.gz "https://github.com/WebAssembly/binaryen/releases/download/version_${BINARYEN_VERSION}/binaryen-version_${BINARYEN_VERSION}-x86_64-linux.tar.gz"
+          mkdir -p .toolchain/binaryen
+          tar -C .toolchain/binaryen --strip-components=1 -xzf /tmp/binaryen.tar.gz
+          curl -L -o /tmp/wasmtime.tar.xz "https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz"
+          mkdir -p .toolchain/wasmtime
+          tar -C .toolchain/wasmtime --strip-components=1 -xf /tmp/wasmtime.tar.xz
+          .toolchain/binaryen/bin/wasm-opt --version
+          .toolchain/wasmtime/wasmtime --version
+
+      - name: Build full toolchain, web app, and APK
+        env:
+          BINARYEN_WASM_OPT: ${{ github.workspace }}/.toolchain/binaryen/bin/wasm-opt
+          WASMTIME: ${{ github.workspace }}/.toolchain/wasmtime/wasmtime
+        run: scripts/ci_build_all.sh
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: excalibur-debug-apk
+          path: android-app/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy-pages:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

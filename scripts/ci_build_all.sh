@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+cd "$ROOT"
+
+: "${WASI_SDK_PATH:=$HOME/.local/share/wasmpy-build/wasi-sdk}"
+export BINARYEN_WASM_OPT="${BINARYEN_WASM_OPT:-$ROOT/.toolchain/binaryen/bin/wasm-opt}"
+export WASMTIME="${WASMTIME:-$ROOT/.toolchain/wasmtime/wasmtime}"
+export ANDROID_HOME="${ANDROID_HOME:-$HOME/android-sdk}"
+export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+
+python3 scripts/static_wasi/build_wasi_libs.py
+python3 scripts/static_wasi/build_static_wasi_python.py
+python3 scripts/build_runtime_artifacts.py --android-precompile
+python3 scripts/static_wasi/probe_static_wasi_conversion.py
+
+(
+  cd consumer-app
+  bun install --frozen-lockfile
+  bun run typecheck
+  bun build index.html --outdir dist --target browser
+)
+
+./android-app/gradlew -p android-app assembleDebug
+
+mkdir -p public/downloads
+cp -a consumer-app/dist/. public/
+cp android-app/app/build/outputs/apk/debug/app-debug.apk public/downloads/excalibur-debug.apk
