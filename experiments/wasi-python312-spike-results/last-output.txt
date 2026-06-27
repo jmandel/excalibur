@@ -2,14 +2,13 @@ python 3.12.0 (tags/v3.12.0:0fb18b0, Dec 11 2023, 11:45:15) [Clang 16.0.0 ] wasi
 import ok zlib
 import ok bz2
 import ok zipfile
-import ok lxml
-import ok PIL
-import ok regex
+import fail lxml ModuleNotFoundError No module named 'lxml'
+import fail PIL ModuleNotFoundError No module named 'PIL'
+import fail regex ModuleNotFoundError No module named 'regex'
 import ok bs4
 import ok html5lib
-import ok msgpack
+import fail msgpack ModuleNotFoundError No module named 'msgpack'
 import ok dateutil
-bootstrap ok
 KINDLE_PROFILES_OK
 kindle	Kindle	screen=(525, 640)	dpi=168.451	fbase=16
 kindle_dx	Kindle DX	screen=(744, 1022)	dpi=150.0	fbase=12
@@ -35,8 +34,8 @@ Source base font size is 12.00000pt
 Removing fake margins...
 Cleaning up manifest...
 Trimming unused files from manifest...
-Trimming 'stylesheet.css' from manifest
 Trimming 'page_styles.css' from manifest
+Trimming 'stylesheet.css' from manifest
 Creating AZW3 Output...
 Serializing resources...
 Splitting markup on page breaks and flow limits, if any...

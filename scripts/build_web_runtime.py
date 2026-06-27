@@ -12,6 +12,7 @@ INCLUDE_FILES = [
     'experiments/inspect_azw3.py',
     'experiments/check_profiles.py',
     'experiments/browser_convert.py',
+    'experiments/wasi_runtime_shims.py',
 ]
 INCLUDE_DIRS = [
     'third_party/calibre/src',

@@ -6,6 +6,10 @@ import sys
 import types
 from pathlib import Path
 
+if sys.platform == 'wasi':
+    import wasi_runtime_shims
+    wasi_runtime_shims.install_pre_import()
+
 # html5_parser is not currently a Pyodide package. Fallback used by the demo;
 # production should replace this with a full html5-parser build/replacement.
 try:
@@ -48,6 +52,9 @@ except Exception:
 from convert_with_plumber import convert  # noqa: E402
 from inspect_azw3 import inspect  # noqa: E402
 from check_profiles import main as check_profiles_main  # noqa: E402
+
+if sys.platform == 'wasi':
+    wasi_runtime_shims.install_conversion_patches()
 
 check_profiles_main()
 
