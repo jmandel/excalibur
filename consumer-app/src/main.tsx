@@ -104,7 +104,7 @@ function LibraryView() {
 }
 
 function QueueSidebar() {
-  const { queue, logs, activeJobId, converterStatus, deviceConfirmed } = useAppStore();
+  const { queue, logs, activeJobId, deviceConfirmed } = useAppStore();
   const counts = {
     queued: queue.filter(j => j.status === 'queued').length,
     running: queue.filter(j => j.status === 'running').length,
@@ -112,13 +112,27 @@ function QueueSidebar() {
     error: queue.filter(j => j.status === 'error').length,
   };
   const active = queue.find(j => j.id === activeJobId);
+  const summary = !deviceConfirmed
+    ? 'Confirm your Kindle to enable conversion.'
+    : active
+      ? 'Converting one book. You can keep editing your library.'
+      : counts.queued
+        ? 'Waiting to start the next book.'
+        : counts.error
+          ? 'Queue paused on an error. Review the log below.'
+          : counts.done
+            ? 'All queued conversions are complete.'
+            : 'Waiting for books.';
+  const visibleJobs = queue.slice(-8).reverse();
   return <aside className="queuePanel">
     <h2>Conversion queue</h2>
-    <p>{deviceConfirmed ? converterStatus === 'Not loaded' ? 'Waiting for books.' : converterStatus : 'Confirm your Kindle to enable conversion.'}</p>
-    <div className="queueCounts"><span>{counts.queued} queued</span><span>{counts.running} running</span><span>{counts.done} done</span><span>{counts.error} errors</span></div>
-    {active && <div className="activeJob"><strong>Now converting</strong><br/>{active.bookTitle}</div>}
-    <div className="jobList">{queue.slice(-8).reverse().map(j => <div key={j.id} className={`job ${j.status}`}><span>{j.status}</span><strong>{j.bookTitle}</strong>{j.startedAt && <small>{Math.round(((j.finishedAt ?? Date.now()) - j.startedAt) / 1000)}s</small>}</div>)}</div>
-    <details open><summary>Logs</summary><div className="logList">{logs.slice(-30).reverse().map(l => <div key={l.id}><time>{new Date(l.time).toLocaleTimeString()}</time> {l.message}</div>)}</div></details>
+    <p className="queueSummary" aria-live="polite">{summary}</p>
+    <div className="queueCounts"><span><strong>{counts.queued}</strong> queued</span><span><strong>{counts.running}</strong> running</span><span><strong>{counts.done}</strong> done</span><span><strong>{counts.error}</strong> errors</span></div>
+    <div className={clsx('activeJob', !active && 'emptyActive')}>
+      {active ? <><strong>Now converting</strong><br/><span>{active.bookTitle}</span></> : <><strong>No active conversion</strong><br/><span>Queued books will run one at a time.</span></>}
+    </div>
+    <div className="jobList">{visibleJobs.map(j => <div key={j.id} className={`job ${j.status}`}><span>{j.status}</span><strong title={j.bookTitle}>{j.bookTitle}</strong>{j.startedAt && <small>{Math.round(((j.finishedAt ?? Date.now()) - j.startedAt) / 1000)}s</small>}</div>)}{visibleJobs.length === 0 && <div className="job emptyJob"><span>idle</span><strong>No queued books</strong><small>—</small></div>}</div>
+    <details open><summary>Logs</summary><div className="logList">{logs.slice(-30).reverse().map(l => <div key={l.id}><time>{new Date(l.time).toLocaleTimeString()}</time><span title={l.message}>{l.message}</span></div>)}</div></details>
   </aside>;
 }
 

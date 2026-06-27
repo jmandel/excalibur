@@ -13,6 +13,12 @@ function emit(message: string) {
   statusCallback?.(message);
   console.log('[converter]', message);
 }
+function logRuntimeOutput(message: string) {
+  // calibre is very chatty and may print warnings to stderr during successful
+  // conversions. Keep that output out of the visible queue and console by
+  // default; enable explicitly when diagnosing runtime issues.
+  if (localStorage.getItem('kindleConverterDebug') === '1') console.debug('[converter-runtime]', message);
+}
 
 export const defaultOptions: ConvertOptions = {
   output_profile: 'kindle_oasis',
@@ -30,7 +36,7 @@ export async function initConverter() {
   if (pythonPromise) return pythonPromise;
   pythonPromise = (async () => {
     emit('Loading static WASI CPython runtime');
-    const python = await createWasiPython(runtimeUrl, emit);
+    const python = await createWasiPython(runtimeUrl, logRuntimeOutput);
     emit('Initializing calibre conversion API');
     await python.runPython(`
 import sys, os

@@ -1880,12 +1880,12 @@ async function runPython(code) {
   const scriptPath = `/tmp/web-run-${counter++}.py`;
   writeFile(scriptPath, new TextEncoder().encode(code));
   const pyPath = "/build/lib.wasi-wasm32-3.12:/Lib:/third_party_site:/experiments:/third_party/calibre/src";
-  const wasi = new WASI(["python.wasm", "-S", scriptPath], ["PYTHONDONTWRITEBYTECODE=1", `PYTHONPATH=${pyPath}`, "PYTHONHOME=/"], [
+  const wasi = new WASI(["python.wasm", "-S", scriptPath], ["PYTHONDONTWRITEBYTECODE=1", `PYTHONPATH=${pyPath}`, "PYTHONHOME=/", "HOME=/tmp", "XDG_CONFIG_HOME=/tmp/.config"], [
     new OpenFile(new File([])),
     ConsoleStdout.lineBuffered((msg) => post("stdout", { message: msg })),
     ConsoleStdout.lineBuffered((msg) => post("stdout", { message: `ERR ${msg}` })),
     root
-  ]);
+  ], { debug: false });
   const mod = await WebAssembly.compile(runtime.wasm);
   const inst = await WebAssembly.instantiate(mod, { wasi_snapshot_preview1: wasi.wasiImport });
   wasi.start(inst);
@@ -1898,6 +1898,7 @@ self.onmessage = async (ev) => {
       root = new PreopenDirectory("/", new Map(runtime.rootEntries));
       rootDir = root.dir;
       ensureDir(rootDir, ["tmp"]);
+      ensureDir(rootDir, ["tmp", ".config"]);
       ensureDir(rootDir, ["work"]);
       post("result", { id });
     } else if (op === "run") {
