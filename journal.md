@@ -279,3 +279,9 @@ Important caveats:
 - WasmEdge `--run-mode=jit`, `--enable-exception-handling`, and `--enable-all --run-mode=jit` all still warn that Exception Handling is not supported in WasmEdge AOT/JIT, then compilation fails and WasmEdge falls back to interpreter mode.
 - WasmEdge `compile` also has no `--enable-exception-handling` option in this release; compiling the exnref artifact fails before producing an AOT `.so`.
 - Interpretation: WasmEdge can interpret the current EH/exnref CPython artifact, but its compiler/JIT path cannot currently compile the EH instructions we need. Wasmtime can compile/run the same artifact when `-W exceptions=y` is set, explaining the large speed gap.
+
+### Promote Wasmtime Android path
+
+- User asked to move beyond a spike and make NDK/JNI Wasmtime the preferred Android app runtime path.
+- Plan: update Android build to package Wasmtime aarch64 Android C API without committing the large `.so`, add JNI glue plus Kotlin facade, unpack the static WASI CPython/calibre runtime from assets, and expose a native probe/conversion path in the app UI.
+- Build-time compile/cache question: Wasmtime can precompile a module to a native `.cwasm` for a specific target, but Android packaging needs target-compatible precompilation (`aarch64-linux-android`) and safe loading with `allow_precompiled`. This is promising but should be treated as phase 2 after the JNI interpreter/JIT path proves on-device; host-side cache already made subsequent runs fast.
