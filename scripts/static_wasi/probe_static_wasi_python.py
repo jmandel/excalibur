@@ -15,7 +15,7 @@ print('python', sys.version.replace('\n',' '))
 print('platform', sys.platform, sysconfig.get_platform())
 print('ext_suffixes', importlib.machinery.EXTENSION_SUFFIXES)
 print('has _cmsgpack builtin', '_cmsgpack' in sys.builtin_module_names)
-for m in ['array','_struct','_pickle','_decimal','pyexpat','_elementtree','_socket','select','zlib','_bz2','_lzma','_regex']:
+for m in ['array','_struct','_pickle','_decimal','pyexpat','_elementtree','_socket','select','zlib','_bz2','_lzma','_regex','_lxml_etree']:
     try:
         mod = __import__(m)
         print('import ok', m, getattr(mod, '__file__', '<builtin>'))
@@ -32,6 +32,18 @@ try:
     print('msgpack ok', msgpack.unpackb(packed, raw=False))
 except Exception as e:
     print('msgpack fail', type(e).__name__, e)
+try:
+    from lxml import etree
+    root = etree.fromstring(b'<root><child a="1"/></root>')
+    print('lxml etree ok', root.tag, root[0].get('a'))
+except Exception as e:
+    print('lxml etree fail', type(e).__name__, e)
+try:
+    from lxml import html
+    doc = html.fromstring('<html><body><p>Hello</p></body></html>')
+    print('lxml html ok', doc.xpath('string(//p)'))
+except Exception as e:
+    print('lxml html fail', type(e).__name__, e)
 '''
 
 def main():
