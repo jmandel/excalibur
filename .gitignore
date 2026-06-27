@@ -14,3 +14,4 @@ consumer-app/dist/
 
 .gradle/
 android-app/.gradle/
+experiments/wasi-python-spike/

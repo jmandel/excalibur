@@ -1,0 +1,26 @@
+Traceback (most recent call last):
+  File "/app/experiments/browser_convert.py", line 12, in <module>
+    import html5_parser  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'html5_parser'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/probe.py", line 32, in <module>
+    import browser_convert
+  File "/app/experiments/browser_convert.py", line 14, in <module>
+    import lxml.html
+ModuleNotFoundError: No module named 'lxml'
+python 3.11.1 (tags/v3.11.1:a7a450f, Jan 27 2023, 13:37:17) [Clang 14.0.4 (https://github.com/llvm/llvm-project 29f1039a7285a5c3a9c353d05414
+platform wasi
+stdlib ok
+import fail lxml ModuleNotFoundError No module named 'lxml'
+import fail PIL ModuleNotFoundError No module named 'PIL'
+import fail regex ModuleNotFoundError No module named 'regex'
+import ok bs4
+import ok html5lib
+import fail msgpack ModuleNotFoundError No module named 'msgpack'
+import ok dateutil
+bootstrap ok
+browser_convert failed
