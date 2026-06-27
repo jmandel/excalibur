@@ -57,6 +57,27 @@ def run(cmd, cwd=None, env=None):
     print('+', ' '.join(map(str, cmd)))
     subprocess.run(list(map(str, cmd)), cwd=cwd, env=env, check=True)
 
+def host_build_aux(name: str) -> Path | None:
+    for base in [
+        Path('/usr/share/autoconf/build-aux'),
+        Path('/usr/share/automake-1.18'),
+        Path('/usr/share/automake-1.17'),
+        Path('/usr/share/automake-1.16'),
+        Path('/usr/share/libtool/build-aux'),
+    ]:
+        candidate = base / name
+        if candidate.exists():
+            return candidate
+    return None
+
+def refresh_config_scripts(src: Path) -> None:
+    for name in ['config.sub', 'config.guess']:
+        replacement = host_build_aux(name)
+        if not replacement:
+            continue
+        for target in src.rglob(name):
+            shutil.copy2(replacement, target)
+
 def unpack(name, dest_name=None):
     stem = dest_name or name.removesuffix('.tar.gz')
     dest = BUILD / stem
@@ -148,14 +169,14 @@ def main():
 
     z = unpack('zlib-1.3.1.tar.gz'); run(['./configure','--static',f'--prefix={PREFIX}'], z, env | {'CHOST':'wasm32-wasi'}); run(['make','-j2'], z, env); run(['make','install'], z, env)
     b = unpack('bzip2-1.0.8.tar.gz'); run(['make','-j2',f'CC={cc}',f'AR={env["AR"]}',f'RANLIB={env["RANLIB"]}','libbz2.a'], b); (PREFIX/'include').mkdir(exist_ok=True); (PREFIX/'lib').mkdir(exist_ok=True); shutil.copy2(b/'bzlib.h', PREFIX/'include/bzlib.h'); shutil.copy2(b/'libbz2.a', PREFIX/'lib/libbz2.a')
-    x = unpack('xz-5.4.6.tar.gz'); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static','--disable-threads','--disable-xz','--disable-xzdec','--disable-lzmadec','--disable-lzmainfo','--disable-scripts','--disable-doc','--disable-nls'], x, env); run(['make','-j2'], x, env); run(['make','install'], x, env)
+    x = unpack('xz-5.4.6.tar.gz'); refresh_config_scripts(x); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static','--disable-threads','--disable-xz','--disable-xzdec','--disable-lzmadec','--disable-lzmainfo','--disable-scripts','--disable-doc','--disable-nls'], x, env); run(['make','-j2'], x, env); run(['make','install'], x, env)
 
     jpeg = unpack('jpeg-3.0.3.tar.gz', 'libjpeg-turbo-3.0.3'); build_libjpeg_turbo(jpeg, env_sjlj, sjlj)
-    png = unpack('libpng-1.6.43.tar.gz'); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static'], png, env_sjlj); run(['make','-j2','libpng16.la'], png, env_sjlj); run(['make','install-libLTLIBRARIES','install-pkgincludeHEADERS','install-binSCRIPTS','install-pkgconfigDATA'], png, env_sjlj)
-    lcms = unpack('lcms2-2.16.tar.gz', 'lcms2-2.16'); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static'], lcms, env); run(['make','-j2'], lcms, env); run(['make','install'], lcms, env)
-    ft = unpack('freetype-2.13.2.tar.gz'); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static','--without-harfbuzz','--without-brotli'], ft, env_sjlj); run(['make','-j2'], ft, env_sjlj); run(['make','install'], ft, env_sjlj)
+    png = unpack('libpng-1.6.43.tar.gz'); refresh_config_scripts(png); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static'], png, env_sjlj); run(['make','-j2','libpng16.la'], png, env_sjlj); run(['make','install-libLTLIBRARIES','install-pkgincludeHEADERS','install-binSCRIPTS','install-pkgconfigDATA'], png, env_sjlj)
+    lcms = unpack('lcms2-2.16.tar.gz', 'lcms2-2.16'); refresh_config_scripts(lcms); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static'], lcms, env); run(['make','-j2'], lcms, env); run(['make','install'], lcms, env)
+    ft = unpack('freetype-2.13.2.tar.gz'); refresh_config_scripts(ft); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static','--without-harfbuzz','--without-brotli'], ft, env_sjlj); run(['make','-j2'], ft, env_sjlj); run(['make','install'], ft, env_sjlj)
     cmake_build(unpack('tiff-4.6.0.tar.gz'), 'tiff-build', ['-Dtiff-tools=OFF','-Dtiff-tests=OFF','-Dtiff-contrib=OFF','-Dtiff-docs=OFF','-Djbig=OFF','-Dwebp=OFF','-Dzstd=OFF','-Djpeg=ON','-Dzlib=ON','-Dlzma=ON'], env_sjlj)
-    webp = unpack('libwebp-1.4.0.tar.gz'); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static','--disable-threading','--disable-neon','--disable-sse4.1','--disable-sse2','--disable-mips32','--disable-mipsdsp','--disable-mipsdspr2'], webp, env); run(['make','-j2'], webp, env); run(['make','install'], webp, env)
+    webp = unpack('libwebp-1.4.0.tar.gz'); refresh_config_scripts(webp); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static','--disable-threading','--disable-neon','--disable-sse4.1','--disable-sse2','--disable-mips32','--disable-mipsdsp','--disable-mipsdspr2'], webp, env); run(['make','-j2'], webp, env); run(['make','install'], webp, env)
     cmake_build(unpack('openjpeg-2.5.2.tar.gz','openjpeg-2.5.2'), 'openjpeg-build', ['-DBUILD_CODEC=OFF','-DBUILD_TESTING=OFF',f'-DCMAKE_C_FLAGS={sjlj} -D_WASI_EMULATED_PROCESS_CLOCKS',f'-DCMAKE_EXE_LINKER_FLAGS={sjlj} -lwasi-emulated-process-clocks'], env_sjlj)
     cmake_build(unpack('libyuv-main.tar.gz','libyuv-main'), 'libyuv-build', ['-DBUILD_TESTING=OFF'], env)
     cmake_build(unpack('aom-3.9.1.tar.gz','aom-3.9.1'), 'aom-build', ['-DENABLE_DOCS=OFF','-DENABLE_EXAMPLES=OFF','-DENABLE_TESTS=OFF','-DENABLE_TOOLS=OFF','-DENABLE_NASM=OFF','-DCONFIG_MULTITHREAD=0',f'-DCMAKE_C_FLAGS={sjlj}',f'-DCMAKE_EXE_LINKER_FLAGS={sjlj}'], env_sjlj)
