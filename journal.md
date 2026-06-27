@@ -179,3 +179,12 @@ Important caveats:
 - Chicory parse result was unchanged: `illegal opcode, op value 06`.
 - Conclusion: the WASI SDK SJLJ path still emits the legacy exception `try` opcode that Chicory 1.7.5 rejects, even with the official-EH flag.
 - Next experiment: attempt a no-SJLJ/no-wasm-EH CPython build and see whether it compiles/runs enough of our conversion path.
+
+### WebAssembly EH research for Android
+
+- Researched WASI SDK setjmp/longjmp support. WASI SDK documents `-mllvm -wasm-enable-sjlj -lsetjmp` and says current/default output is legacy "phase3" exception handling.
+- Confirmed locally that our clang accepts `-mllvm -wasm-use-legacy-eh=false`, but the resulting CPython artifact still contains legacy opcode `0x06` and Chicory rejects it.
+- Installed Ubuntu `binaryen` package; version 108 is too old and lacks `--translate-to-exnref`.
+- Downloaded upstream Binaryen version_130; it supports `wasm-opt --translate-to-exnref`, the documented post-link translation from old phase-3 EH to new exnref EH. Exact CPython artifact translation still needs to be run after restoring a normal legacy `python.wasm` build.
+- Tried experimental `--no-sjlj` build. It is not a drop-in option: WASI SDK's `setjmp.h` fails compilation without `-mllvm -wasm-enable-sjlj` when Pillow/JPEG code includes setjmp.
+- Current interpretation: nonlegacy EH is possible in toolchains, but not yet proven for this CPython/calibre artifact. Practical routes are (1) Binaryen v130 translate-to-exnref after legacy build, (2) rebuild full WASI SDK/sysroot/libs with official wasm EH flags, or (3) use a runtime that supports the legacy artifact.

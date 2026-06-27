@@ -341,6 +341,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--clean', action='store_true', help='clean CPython wasm build before building')
     ap.add_argument('--official-eh', action='store_true', help='emit official WebAssembly EH instead of legacy EH for Android/Chicory probes')
+    ap.add_argument('--no-sjlj', action='store_true', help='experimental: omit LLVM wasm SJLJ/setjmp flags for Android/Chicory parse probes')
     args = ap.parse_args()
     ensure_source(); ensure_wasmtime(); ensure_regex_source(); ensure_msgpack_source(); ensure_lxml_source(); ensure_pillow_source(); stage_regex_package(); stage_msgpack_package(); stage_lxml_package(); stage_pillow_package(); write_setup_local()
     base_env = env()
@@ -356,11 +357,12 @@ def main():
         target_env['CPPFLAGS'] = f'-I{inc} ' + target_env.get('CPPFLAGS', '')
         target_env['LDFLAGS'] = f'-L{lib} -L{WASI_SDK / "share/wasi-sysroot/lib/wasm32-wasip1"} ' + target_env.get('LDFLAGS', '')
         target_env['PKG_CONFIG_PATH'] = str(pc)
-    eh_flags = '-mllvm -wasm-enable-sjlj'
-    if args.official_eh:
+    eh_flags = '' if args.no_sjlj else '-mllvm -wasm-enable-sjlj'
+    if args.official_eh and not args.no_sjlj:
         eh_flags += ' -mllvm -wasm-use-legacy-eh=false'
     target_env['CFLAGS'] = f'-O2 -g0 {eh_flags} -D_WASI_EMULATED_PROCESS_CLOCKS ' + target_env.get('CFLAGS', '')
-    target_env['LDFLAGS'] = target_env.get('LDFLAGS', '') + f' {eh_flags} -lsetjmp -lwasi-emulated-process-clocks'
+    setjmp_lib = '' if args.no_sjlj else ' -lsetjmp'
+    target_env['LDFLAGS'] = target_env.get('LDFLAGS', '') + f' {eh_flags}{setjmp_lib} -lwasi-emulated-process-clocks'
     target_env['MAKEFLAGS'] = '-j1'
     if args.clean:
         shutil.rmtree(SRC / 'builddir/wasi', ignore_errors=True)
