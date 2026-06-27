@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import os, shutil, subprocess, tarfile, urllib.request, textwrap
+import os, shutil, subprocess, tarfile, textwrap, time, urllib.error, urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -24,6 +24,24 @@ TARBALLS = {
     'aom-3.9.1.tar.gz': 'https://aomedia.googlesource.com/aom/+archive/v3.9.1.tar.gz',
     'libavif-1.1.1.tar.gz': 'https://github.com/AOMediaCodec/libavif/archive/refs/tags/v1.1.1.tar.gz',
 }
+
+def download(url: str, path: Path, attempts: int = 5) -> None:
+    tmp = path.with_suffix(path.suffix + '.part')
+    for attempt in range(1, attempts + 1):
+        try:
+            print(f'Downloading {url} -> {path.name} (attempt {attempt}/{attempts})')
+            req = urllib.request.Request(url, headers={'User-Agent': 'excalibur-ci/1.0'})
+            with urllib.request.urlopen(req, timeout=120) as resp, tmp.open('wb') as out:
+                shutil.copyfileobj(resp, out)
+            tmp.replace(path)
+            return
+        except (OSError, TimeoutError, urllib.error.URLError) as e:
+            tmp.unlink(missing_ok=True)
+            if attempt == attempts:
+                raise
+            wait = min(60, 2 ** attempt)
+            print(f'Download failed: {e}; retrying in {wait}s')
+            time.sleep(wait)
 
 def run(cmd, cwd=None, env=None):
     print('+', ' '.join(map(str, cmd)))
@@ -79,7 +97,7 @@ def main():
     SRC.mkdir(parents=True, exist_ok=True); BUILD.mkdir(parents=True, exist_ok=True); PREFIX.mkdir(parents=True, exist_ok=True)
     for name, url in TARBALLS.items():
         path = SRC / name
-        if not path.exists(): urllib.request.urlretrieve(url, path)
+        if not path.exists(): download(url, path)
     cc = f'{WASI_SDK}/bin/clang --sysroot={WASI_SDK}/share/wasi-sysroot'
     sjlj = '-mllvm -wasm-enable-sjlj'
     env = os.environ.copy() | {'CC': cc, 'AR': f'{WASI_SDK}/bin/llvm-ar', 'RANLIB': f'{WASI_SDK}/bin/llvm-ranlib', 'PKG_CONFIG_PATH': str(PREFIX/'lib/pkgconfig')}

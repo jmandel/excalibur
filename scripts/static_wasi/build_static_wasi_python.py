@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, os, shutil, subprocess, sys, tarfile, urllib.request
+import argparse, os, shutil, subprocess, sys, tarfile, time, urllib.error, urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -44,10 +44,28 @@ def run(cmd, *, cwd=None, env=None, check=True):
     print('+', ' '.join(map(str, cmd)))
     return subprocess.run(list(map(str, cmd)), cwd=cwd, env=env, check=check)
 
+def download(url: str, path: Path, attempts: int = 5) -> None:
+    tmp = path.with_suffix(path.suffix + '.part')
+    for attempt in range(1, attempts + 1):
+        try:
+            print(f'Downloading {url} -> {path.name} (attempt {attempt}/{attempts})')
+            req = urllib.request.Request(url, headers={'User-Agent': 'excalibur-ci/1.0'})
+            with urllib.request.urlopen(req, timeout=120) as resp, tmp.open('wb') as out:
+                shutil.copyfileobj(resp, out)
+            tmp.replace(path)
+            return
+        except (OSError, TimeoutError, urllib.error.URLError) as e:
+            tmp.unlink(missing_ok=True)
+            if attempt == attempts:
+                raise
+            wait = min(60, 2 ** attempt)
+            print(f'Download failed: {e}; retrying in {wait}s')
+            time.sleep(wait)
+
 def ensure_source():
     WORK.mkdir(parents=True, exist_ok=True)
     if not TGZ.exists():
-        urllib.request.urlretrieve(PY_URL, TGZ)
+        download(PY_URL, TGZ)
     if not SRC.exists():
         with tarfile.open(TGZ) as t:
             t.extractall(WORK)
@@ -73,7 +91,7 @@ def ensure_pillow_source():
     THIRD_PARTY_SRC.mkdir(parents=True, exist_ok=True)
     THIRD_PARTY_BUILD.mkdir(parents=True, exist_ok=True)
     if not PILLOW_TGZ.exists():
-        urllib.request.urlretrieve(PILLOW_URL, PILLOW_TGZ)
+        download(PILLOW_URL, PILLOW_TGZ)
     dest = pillow_source_dir()
     if not dest.exists():
         with tarfile.open(PILLOW_TGZ) as t:
@@ -83,7 +101,7 @@ def ensure_lxml_source():
     THIRD_PARTY_SRC.mkdir(parents=True, exist_ok=True)
     THIRD_PARTY_BUILD.mkdir(parents=True, exist_ok=True)
     if not LXML_TGZ.exists():
-        urllib.request.urlretrieve(LXML_URL, LXML_TGZ)
+        download(LXML_URL, LXML_TGZ)
     dest = lxml_source_dir()
     if not dest.exists():
         with tarfile.open(LXML_TGZ) as t:
@@ -93,7 +111,7 @@ def ensure_msgpack_source():
     THIRD_PARTY_SRC.mkdir(parents=True, exist_ok=True)
     THIRD_PARTY_BUILD.mkdir(parents=True, exist_ok=True)
     if not MSGPACK_TGZ.exists():
-        urllib.request.urlretrieve(MSGPACK_URL, MSGPACK_TGZ)
+        download(MSGPACK_URL, MSGPACK_TGZ)
     dest = msgpack_source_dir()
     if not dest.exists():
         with tarfile.open(MSGPACK_TGZ) as t:
@@ -103,7 +121,7 @@ def ensure_regex_source():
     THIRD_PARTY_SRC.mkdir(parents=True, exist_ok=True)
     THIRD_PARTY_BUILD.mkdir(parents=True, exist_ok=True)
     if not REGEX_TGZ.exists():
-        urllib.request.urlretrieve(REGEX_URL, REGEX_TGZ)
+        download(REGEX_URL, REGEX_TGZ)
     dest = regex_source_dir()
     if not dest.exists():
         with tarfile.open(REGEX_TGZ) as t:
