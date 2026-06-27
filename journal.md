@@ -253,3 +253,20 @@ Important caveats:
 - Wasm3 0.5.0: failed parsing the module (`out of order Wasm section`), confirming it is not suitable for this modern CPython/WASI artifact.
 - Downloaded Android aarch64 runtime packages for the two viable options. Wasmtime's Android C API package includes a ~24.8 MiB `libwasmtime.so` plus headers; WasmEdge's Android package includes a ~3.1 MiB `libwasmedge.so` plus headers.
 - Conclusion: move production Android runtime exploration from Chicory to NDK/JNI embedding. Try Wasmtime first because speed is the blocker and it supports the exnref/EH artifact very well on the host. Keep WasmEdge as the smaller/slower fallback.
+### Chicory JVM compiler/AOT evaluation
+
+- Evaluated Chicory's JVM bytecode compiler (`com.dylibso.chicory:compiler:1.7.5`) as the closest host-side analogue to the experimental Android AOT path. The Android package itself remains gated behind GitHub Package Registry as `com.dylibso.chicory:android-aot:0.0.1`, but the documented API shape is the same `withMachineFactory(...)` hook.
+- Extended `scripts/static_wasi/probe_chicory_exnref.py` with `--compiler`, which downloads the Chicory compiler and ASM jars into `/tmp/chicory-compiler` and instantiates the exnref CPython module via `MachineFactoryCompiler.compile(module)`.
+- The compiler can compile the translated `/tmp/python-exnref.wasm`, but warns that six functions fall back to interpreted mode. Compile time on this VM is about 23-28 seconds after parse.
+- Performance results compared to previous pure interpreter probe:
+  - `print()`: compile ~27.7s, total startup ~28.7s. This is much slower than interpreter-only startup (~2.6s) because compile time dominates.
+  - `import browser_convert`: compile ~24.1s, total ~52.8s. This is roughly 2x faster than interpreter-only import (~101s), even including compile time.
+  - `minimal.epub` conversion: compile ~24.9s, total ~119.7s with valid AZW3 output. This is roughly 1.8x faster than interpreter-only conversion (~216s), including compile time.
+- Interpretation: Chicory AOT/compiler helps materially for long-lived CPython/calibre workloads, but not enough by itself to make one-shot conversion comfortable. It also has upfront cost and still depends on the Binaryen exnref translation because Chicory must parse the wasm before any AOT machine can run it. Android AOT is still worth probing on-device because ART/JIT/device CPU behavior may differ, but the native app should plan to keep one warm runtime/worker alive and treat AOT as an optimization, not a correctness fix.
+
+
+### WasmEdge versus Wasmtime performance sanity check
+
+- Investigating why Wasmtime was dramatically faster than WasmEdge on the native-runtime host probe.
+- Hypothesis: Wasmtime is compiling/JITing the exnref exception-handling artifact, while WasmEdge can interpret it but its AOT/JIT backend does not yet support the exception-handling opcodes emitted by this CPython/SJLJ build.
+- Next checks: run WasmEdge against both the exnref-translated artifact and the original legacy-EH artifact with interpreter/JIT/AOT options, and compare whether any path avoids interpreter fallback.
