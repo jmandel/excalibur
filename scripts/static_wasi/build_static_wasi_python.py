@@ -52,6 +52,8 @@ def download(url: str, path: Path, attempts: int = 5) -> None:
             req = urllib.request.Request(url, headers={'User-Agent': 'excalibur-ci/1.0'})
             with urllib.request.urlopen(req, timeout=120) as resp, tmp.open('wb') as out:
                 shutil.copyfileobj(resp, out)
+            if not tarfile.is_tarfile(tmp):
+                raise OSError(f'downloaded file is not a tar archive: {path.name}')
             tmp.replace(path)
             return
         except (OSError, TimeoutError, urllib.error.URLError) as e:
@@ -62,10 +64,17 @@ def download(url: str, path: Path, attempts: int = 5) -> None:
             print(f'Download failed: {e}; retrying in {wait}s')
             time.sleep(wait)
 
+def ensure_tarball(url: str, path: Path) -> None:
+    if path.exists():
+        if tarfile.is_tarfile(path):
+            return
+        print(f'Removing invalid cached archive: {path}')
+        path.unlink()
+    download(url, path)
+
 def ensure_source():
     WORK.mkdir(parents=True, exist_ok=True)
-    if not TGZ.exists():
-        download(PY_URL, TGZ)
+    ensure_tarball(PY_URL, TGZ)
     if not SRC.exists():
         with tarfile.open(TGZ) as t:
             t.extractall(WORK)
@@ -90,8 +99,7 @@ def pillow_source_dir() -> Path:
 def ensure_pillow_source():
     THIRD_PARTY_SRC.mkdir(parents=True, exist_ok=True)
     THIRD_PARTY_BUILD.mkdir(parents=True, exist_ok=True)
-    if not PILLOW_TGZ.exists():
-        download(PILLOW_URL, PILLOW_TGZ)
+    ensure_tarball(PILLOW_URL, PILLOW_TGZ)
     dest = pillow_source_dir()
     if not dest.exists():
         with tarfile.open(PILLOW_TGZ) as t:
@@ -100,8 +108,7 @@ def ensure_pillow_source():
 def ensure_lxml_source():
     THIRD_PARTY_SRC.mkdir(parents=True, exist_ok=True)
     THIRD_PARTY_BUILD.mkdir(parents=True, exist_ok=True)
-    if not LXML_TGZ.exists():
-        download(LXML_URL, LXML_TGZ)
+    ensure_tarball(LXML_URL, LXML_TGZ)
     dest = lxml_source_dir()
     if not dest.exists():
         with tarfile.open(LXML_TGZ) as t:
@@ -110,8 +117,7 @@ def ensure_lxml_source():
 def ensure_msgpack_source():
     THIRD_PARTY_SRC.mkdir(parents=True, exist_ok=True)
     THIRD_PARTY_BUILD.mkdir(parents=True, exist_ok=True)
-    if not MSGPACK_TGZ.exists():
-        download(MSGPACK_URL, MSGPACK_TGZ)
+    ensure_tarball(MSGPACK_URL, MSGPACK_TGZ)
     dest = msgpack_source_dir()
     if not dest.exists():
         with tarfile.open(MSGPACK_TGZ) as t:
@@ -120,8 +126,7 @@ def ensure_msgpack_source():
 def ensure_regex_source():
     THIRD_PARTY_SRC.mkdir(parents=True, exist_ok=True)
     THIRD_PARTY_BUILD.mkdir(parents=True, exist_ok=True)
-    if not REGEX_TGZ.exists():
-        download(REGEX_URL, REGEX_TGZ)
+    ensure_tarball(REGEX_URL, REGEX_TGZ)
     dest = regex_source_dir()
     if not dest.exists():
         with tarfile.open(REGEX_TGZ) as t:

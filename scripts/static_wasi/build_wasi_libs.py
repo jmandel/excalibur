@@ -33,6 +33,8 @@ def download(url: str, path: Path, attempts: int = 5) -> None:
             req = urllib.request.Request(url, headers={'User-Agent': 'excalibur-ci/1.0'})
             with urllib.request.urlopen(req, timeout=120) as resp, tmp.open('wb') as out:
                 shutil.copyfileobj(resp, out)
+            if not tarfile.is_tarfile(tmp):
+                raise OSError(f'downloaded file is not a tar archive: {path.name}')
             tmp.replace(path)
             return
         except (OSError, TimeoutError, urllib.error.URLError) as e:
@@ -42,6 +44,14 @@ def download(url: str, path: Path, attempts: int = 5) -> None:
             wait = min(60, 2 ** attempt)
             print(f'Download failed: {e}; retrying in {wait}s')
             time.sleep(wait)
+
+def ensure_tarball(url: str, path: Path) -> None:
+    if path.exists():
+        if tarfile.is_tarfile(path):
+            return
+        print(f'Removing invalid cached archive: {path}')
+        path.unlink()
+    download(url, path)
 
 def run(cmd, cwd=None, env=None):
     print('+', ' '.join(map(str, cmd)))
@@ -130,7 +140,7 @@ def main():
     SRC.mkdir(parents=True, exist_ok=True); BUILD.mkdir(parents=True, exist_ok=True); PREFIX.mkdir(parents=True, exist_ok=True)
     for name, url in TARBALLS.items():
         path = SRC / name
-        if not path.exists(): download(url, path)
+        ensure_tarball(url, path)
     cc = f'{WASI_SDK}/bin/clang --sysroot={WASI_SDK}/share/wasi-sysroot'
     sjlj = '-mllvm -wasm-enable-sjlj'
     env = os.environ.copy() | {'CC': cc, 'AR': f'{WASI_SDK}/bin/llvm-ar', 'RANLIB': f'{WASI_SDK}/bin/llvm-ranlib', 'PKG_CONFIG_PATH': str(PREFIX/'lib/pkgconfig')}
