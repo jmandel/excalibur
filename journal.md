@@ -163,3 +163,11 @@ Important caveats:
   - includes Chicory runtime/WASI dependencies;
   - includes a tiny `add.wasm` `WasmSpike` smoke test.
 - Next step: replace/extend `WasmSpike` with a real `python.wasm` startup/import/conversion probe and journal the result.
+
+### Android Chicory parse probe
+
+- Ran a JVM-side Chicory 1.7.5 parse probe against `experiments/static-wasi-python/Python-3.12.0/builddir/wasi/python.wasm` before wiring Android UI.
+- Result: Chicory parser fails before instantiation:
+  - `MalformedException: illegal opcode, op value 06`
+- Interpretation: opcode `0x06` is `try` in the legacy WebAssembly exception handling proposal used by the WASI SDK SJLJ/setjmp path. Chicory documentation says exception handling exists in recent releases, but Chicory 1.7.5 still rejects this artifact's exception encoding in our local probe.
+- Next step: investigate whether a newer/configured Chicory parser/runtime can accept this exception encoding; if not, build/test a no-wasm-exception CPython variant or choose another Android WASM host/fallback path.
