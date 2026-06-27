@@ -14,6 +14,7 @@ import sys, importlib.machinery, sysconfig
 print('python', sys.version.replace('\n',' '))
 print('platform', sys.platform, sysconfig.get_platform())
 print('ext_suffixes', importlib.machinery.EXTENSION_SUFFIXES)
+print('has _cmsgpack builtin', '_cmsgpack' in sys.builtin_module_names)
 for m in ['array','_struct','_pickle','_decimal','pyexpat','_elementtree','_socket','select','zlib','_bz2','_lzma','_regex']:
     try:
         mod = __import__(m)
@@ -25,6 +26,12 @@ try:
     print('regex ok', regex.compile(r'(?i)(a)(b)').findall('ab AB'))
 except Exception as e:
     print('regex fail', type(e).__name__, e)
+try:
+    import msgpack
+    packed = msgpack.packb({'x': [1, 2, 3]}, use_bin_type=True)
+    print('msgpack ok', msgpack.unpackb(packed, raw=False))
+except Exception as e:
+    print('msgpack fail', type(e).__name__, e)
 '''
 
 def main():
