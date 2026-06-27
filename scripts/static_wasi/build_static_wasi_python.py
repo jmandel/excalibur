@@ -363,6 +363,10 @@ def main():
     target_env['CFLAGS'] = f'-O2 -g0 {eh_flags} -D_WASI_EMULATED_PROCESS_CLOCKS ' + target_env.get('CFLAGS', '')
     setjmp_lib = '' if args.no_sjlj else ' -lsetjmp'
     target_env['LDFLAGS'] = target_env.get('LDFLAGS', '') + f' {eh_flags}{setjmp_lib} -lwasi-emulated-process-clocks'
+    # The WASI SDK process-clocks shim provides clock(), but CPython's cached
+    # cross configure can otherwise record ac_cv_func_clock=no and leave
+    # timemodule.c in an inconsistent fallback state.
+    target_env['ac_cv_func_clock'] = 'yes'
     target_env['MAKEFLAGS'] = '-j1'
     if args.clean:
         shutil.rmtree(SRC / 'builddir/wasi', ignore_errors=True)

@@ -188,3 +188,19 @@ Important caveats:
 - Downloaded upstream Binaryen version_130; it supports `wasm-opt --translate-to-exnref`, the documented post-link translation from old phase-3 EH to new exnref EH. Exact CPython artifact translation still needs to be run after restoring a normal legacy `python.wasm` build.
 - Tried experimental `--no-sjlj` build. It is not a drop-in option: WASI SDK's `setjmp.h` fails compilation without `-mllvm -wasm-enable-sjlj` when Pillow/JPEG code includes setjmp.
 - Current interpretation: nonlegacy EH is possible in toolchains, but not yet proven for this CPython/calibre artifact. Practical routes are (1) Binaryen v130 translate-to-exnref after legacy build, (2) rebuild full WASI SDK/sysroot/libs with official wasm EH flags, or (3) use a runtime that supports the legacy artifact.
+
+### Binaryen exnref translation success
+
+- Restored a normal legacy-EH `python.wasm` build.
+- Installed/downloaded upstream Binaryen version_130 in `/tmp/binaryen130` because Ubuntu `binaryen` 108 lacks `--translate-to-exnref`.
+- Ran Binaryen v130 translation:
+  - `/tmp/binaryen130/bin/wasm-opt python.wasm --translate-to-exnref -o /tmp/python-exnref.wasm`
+- Resulting translated artifact:
+  - legacy input: about 27 MiB
+  - exnref output: about 25 MiB
+- JVM-side Chicory 1.7.5 parse probe now succeeds on `/tmp/python-exnref.wasm`:
+  - `PARSE_OK`
+  - imports: 43
+  - exports: 2
+  - tags: 1
+- This proves the nonlegacy EH path is actionable as a post-link Binaryen transform. Next step: instantiate/start the translated artifact under Chicory+WASI.
