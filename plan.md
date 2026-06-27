@@ -174,5 +174,16 @@ The Rust writer should use calibre's `writer8` as a reference but expose a small
 2. Create `plan.md` and `journal.md`. **Done.**
 3. Inventory imports for the minimal EPUB->AZW3 path.
 4. Create/download initial fixtures with license notes.
-5. Try running desktop calibre source modules enough to produce a baseline AZW3 from a tiny fixture.
+5. Try running desktop calibre source modules enough to produce a baseline AZW3 from a tiny fixture. **Started via `experiments/import_probe.py`.**
 6. Build a Pyodide import spike.
+
+## Current native import-probe status
+
+`experiments/import_probe.py` is the working harness for discovering the minimum shim surface. It currently:
+
+- Adds `third_party/calibre/src` to `sys.path`.
+- Defines `sys.extensions_location` and `sys.resources_location` expected by calibre's app layout.
+- Stubs `calibre_extensions.cPalmdoc`, `speedup`, `icu`, `translator`, and `imageops`.
+- Attempts imports of the core EPUB/OEB/AZW3 modules.
+
+Known next failure: expand ICU shim beyond the current functions; latest native probe reached missing `calibre_extensions.icu.chr`.
