@@ -165,7 +165,7 @@ def main():
     cc = f'{WASI_SDK}/bin/clang --sysroot={WASI_SDK}/share/wasi-sysroot'
     sjlj = '-mllvm -wasm-enable-sjlj'
     env = os.environ.copy() | {'CC': cc, 'AR': f'{WASI_SDK}/bin/llvm-ar', 'RANLIB': f'{WASI_SDK}/bin/llvm-ranlib', 'PKG_CONFIG_PATH': str(PREFIX/'lib/pkgconfig')}
-    env_sjlj = env | {'CFLAGS': sjlj, 'LDFLAGS': sjlj, 'CPPFLAGS': f'-I{PREFIX}/include', 'LIBS': f'-L{PREFIX}/lib'}
+    env_sjlj = env | {'CFLAGS': sjlj, 'CXXFLAGS': sjlj, 'LDFLAGS': sjlj, 'CPPFLAGS': f'-I{PREFIX}/include', 'LIBS': f'-L{PREFIX}/lib'}
 
     z = unpack('zlib-1.3.1.tar.gz'); run(['./configure','--static',f'--prefix={PREFIX}'], z, env | {'CHOST':'wasm32-wasi'}); run(['make','-j2'], z, env); run(['make','install'], z, env)
     b = unpack('bzip2-1.0.8.tar.gz'); run(['make','-j2',f'CC={cc}',f'AR={env["AR"]}',f'RANLIB={env["RANLIB"]}','libbz2.a'], b); (PREFIX/'include').mkdir(exist_ok=True); (PREFIX/'lib').mkdir(exist_ok=True); shutil.copy2(b/'bzlib.h', PREFIX/'include/bzlib.h'); shutil.copy2(b/'libbz2.a', PREFIX/'lib/libbz2.a')
@@ -179,7 +179,7 @@ def main():
     webp = unpack('libwebp-1.4.0.tar.gz'); refresh_config_scripts(webp); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static','--disable-threading','--disable-neon','--disable-sse4.1','--disable-sse2','--disable-mips32','--disable-mipsdsp','--disable-mipsdspr2'], webp, env); run(['make','-j2'], webp, env); run(['make','install'], webp, env)
     cmake_build(unpack('openjpeg-2.5.2.tar.gz','openjpeg-2.5.2'), 'openjpeg-build', ['-DBUILD_CODEC=OFF','-DBUILD_TESTING=OFF',f'-DCMAKE_C_FLAGS={sjlj} -D_WASI_EMULATED_PROCESS_CLOCKS',f'-DCMAKE_EXE_LINKER_FLAGS={sjlj} -lwasi-emulated-process-clocks'], env_sjlj)
     cmake_build(unpack('libyuv-main.tar.gz','libyuv-main'), 'libyuv-build', ['-DBUILD_TESTING=OFF'], env)
-    cmake_build(unpack('aom-3.9.1.tar.gz','aom-3.9.1'), 'aom-build', ['-DENABLE_DOCS=OFF','-DENABLE_EXAMPLES=OFF','-DENABLE_TESTS=OFF','-DENABLE_TOOLS=OFF','-DENABLE_NASM=OFF','-DCONFIG_MULTITHREAD=0',f'-DCMAKE_C_FLAGS={sjlj}',f'-DCMAKE_EXE_LINKER_FLAGS={sjlj}'], env_sjlj)
-    cmake_build(unpack('libavif-1.1.1.tar.gz','libavif-1.1.1'), 'libavif-build', ['-DAVIF_CODEC_AOM=SYSTEM','-DAVIF_LIBYUV=SYSTEM','-DAVIF_BUILD_APPS=OFF','-DAVIF_BUILD_TESTS=OFF',f'-DLIBSHARPYUV_INCLUDE_DIR={PREFIX}/include',f'-DLIBSHARPYUV_LIBRARY={PREFIX}/lib/libsharpyuv.a'], env_sjlj)
+    cmake_build(unpack('aom-3.9.1.tar.gz','aom-3.9.1'), 'aom-build', ['-DENABLE_DOCS=OFF','-DENABLE_EXAMPLES=OFF','-DENABLE_TESTS=OFF','-DENABLE_TOOLS=OFF','-DENABLE_NASM=OFF','-DCONFIG_MULTITHREAD=0',f'-DCMAKE_C_FLAGS={sjlj}',f'-DCMAKE_CXX_FLAGS={sjlj}',f'-DCMAKE_EXE_LINKER_FLAGS={sjlj}'], env_sjlj)
+    cmake_build(unpack('libavif-1.1.1.tar.gz','libavif-1.1.1'), 'libavif-build', ['-DAVIF_CODEC_AOM=SYSTEM','-DAVIF_LIBYUV=SYSTEM','-DAVIF_BUILD_APPS=OFF','-DAVIF_BUILD_TESTS=OFF',f'-DLIBYUV_INCLUDE_DIR={PREFIX}/include',f'-DLIBYUV_LIBRARY={PREFIX}/lib/libyuv.a',f'-DLIBYUV_LIBRARIES={PREFIX}/lib/libyuv.a',f'-DLIBSHARPYUV_INCLUDE_DIR={PREFIX}/include',f'-DLIBSHARPYUV_LIBRARY={PREFIX}/lib/libsharpyuv.a',f'-DCMAKE_C_FLAGS={sjlj}',f'-DCMAKE_CXX_FLAGS={sjlj}',f'-DCMAKE_EXE_LINKER_FLAGS={sjlj}'], env_sjlj)
     print(PREFIX)
 if __name__ == '__main__': main()

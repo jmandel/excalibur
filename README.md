@@ -27,6 +27,20 @@ For Android it can also embed target-specific `wasi/python-aarch64-android.cwasm
 
 ## Build web app
 
+The easiest local path builds the WASI runtime artifacts from source and then builds the browser app:
+
+```bash
+scripts/build_web_app.sh
+```
+
+To also include the Android precompiled Wasmtime artifact in the Android runtime zip:
+
+```bash
+scripts/build_web_app.sh --android-precompile
+```
+
+If the runtime artifacts already exist and you only need to rebuild the frontend:
+
 ```bash
 cd consumer-app
 bun install
