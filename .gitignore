@@ -7,3 +7,5 @@ experiments/out/
 *.azw3
 *.mobi
 *.log
+node_modules/
+experiments/pyodide-out/
