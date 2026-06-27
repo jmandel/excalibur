@@ -70,7 +70,7 @@ async function runPython(code: string) {
   const pyPath = '/build/lib.wasi-wasm32-3.12:/Lib:/third_party_site:/experiments:/third_party/calibre/src';
   const wasi = new WASI(
     ['python.wasm', '-S', scriptPath],
-    ['PYTHONDONTWRITEBYTECODE=1', `PYTHONPATH=${pyPath}`, 'PYTHONHOME=/', 'HOME=/tmp', 'XDG_CONFIG_HOME=/tmp/.config'],
+    ['PYTHONDONTWRITEBYTECODE=1', `PYTHONPATH=${pyPath}`, 'PYTHONHOME=/', 'PYTHONTZPATH=/usr/share/zoneinfo', 'HOME=/tmp', 'XDG_CONFIG_HOME=/tmp/.config'],
     [
       new OpenFile(new File([])),
       ConsoleStdout.lineBuffered((msg: string) => post('stdout', { message: msg })),

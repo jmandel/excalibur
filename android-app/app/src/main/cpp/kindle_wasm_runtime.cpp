@@ -99,9 +99,9 @@ static RunResult run_wasmtime(const std::string &wasm_path, const std::string &c
     wasi_config_t *wasi = wasi_config_new();
     const char *argv[] = {"python.wasm", "-S", "/work/probe.py"};
     wasi_config_set_argv(wasi, 3, argv);
-    const char *names[] = {"PYTHONPATH", "PYTHONDONTWRITEBYTECODE", "PYTHONHOME", "HOME", "XDG_CONFIG_HOME"};
-    const char *values[] = {"/build/lib.wasi-wasm32-3.12:/Lib:/third_party_site:/experiments:/third_party/calibre/src", "1", "/", "/work", "/work/.config"};
-    wasi_config_set_env(wasi, 5, names, values);
+    const char *names[] = {"PYTHONPATH", "PYTHONDONTWRITEBYTECODE", "PYTHONHOME", "PYTHONTZPATH", "HOME", "XDG_CONFIG_HOME"};
+    const char *values[] = {"/build/lib.wasi-wasm32-3.12:/Lib:/third_party_site:/experiments:/third_party/calibre/src", "1", "/", "/usr/share/zoneinfo", "/work", "/work/.config"};
+    wasi_config_set_env(wasi, 6, names, values);
     wasi_config_set_stdout_custom(wasi, write_capture, new Capture{&r.stdout_text}, delete_capture);
     wasi_config_set_stderr_custom(wasi, write_capture, new Capture{&r.stderr_text}, delete_capture);
     preopen(wasi, runtime_root + "/wasi", "/", false);

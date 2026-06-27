@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import json, shutil, subprocess, tempfile
+import json, shutil, subprocess, tempfile, zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-PYWASM = ROOT / 'build/runtime/python-exnref.wasm'
-SRC = ROOT / 'experiments/static-wasi-python/Python-3.12.0'
-THIRD_PARTY_SITE = ROOT / 'experiments/static-wasi-python/third-party-site'
+RUNTIME_ZIP = ROOT / 'web/calibre-runtime.zip'
 NODE = shutil.which('node')
 
 RUNNER = r'''
 const fs = require('fs');
 const { WASI } = require('wasi');
-const [,, wasm, srcRoot, thirdParty, repo, work, inputName] = process.argv;
+const [,, wasm, runtimeRoot, work, inputName] = process.argv;
 const code = `
 import os, json
 os.chdir('/')
@@ -22,12 +20,19 @@ info = browser_convert.convert_file('/work/${inputName}', '/work/out.azw3', {'ou
 print('converted', json.dumps(info, sort_keys=True), flush=True)
 `;
 fs.writeFileSync(`${work}/probe.py`, code);
-const pyPath = '/builddir/wasi/build/lib.wasi-wasm32-3.12:/Lib:/third_party_site:/repo/experiments:/repo/third_party/calibre/src';
+const pyPath = '/build/lib.wasi-wasm32-3.12:/Lib:/third_party_site:/experiments:/third_party/calibre/src';
 const wasi = new WASI({
   version: 'preview1',
   args: ['python.wasm', '/work/probe.py'],
-  env: { PYTHONPATH: pyPath, PYTHONDONTWRITEBYTECODE: '1' },
-  preopens: { '/': srcRoot, '/third_party_site': thirdParty, '/repo': repo, '/work': work }
+  env: {
+    PYTHONPATH: pyPath,
+    PYTHONDONTWRITEBYTECODE: '1',
+    PYTHONHOME: '/',
+    PYTHONTZPATH: '/usr/share/zoneinfo',
+    HOME: '/tmp',
+    XDG_CONFIG_HOME: '/tmp/.config'
+  },
+  preopens: { '/': runtimeRoot, '/work': work }
 });
 (async()=>{
   const mod = await WebAssembly.compile(fs.readFileSync(wasm));
@@ -36,14 +41,36 @@ const wasi = new WASI({
 })().catch(e=>{ console.error(e); process.exit(1); });
 '''
 
+def extract_runtime(dest: Path) -> Path:
+    if not RUNTIME_ZIP.exists():
+        raise SystemExit(f'missing {RUNTIME_ZIP}; run scripts/build_runtime_artifacts.py first')
+    with zipfile.ZipFile(RUNTIME_ZIP) as z:
+        for info in z.infolist():
+            if info.is_dir():
+                continue
+            name = info.filename
+            rel = Path(name.removeprefix('wasi/')) if name.startswith('wasi/') else Path(name)
+            out = dest / rel
+            out.parent.mkdir(parents=True, exist_ok=True)
+            with z.open(info) as src, out.open('wb') as target:
+                shutil.copyfileobj(src, target)
+    wasm = dest / 'python.wasm'
+    if not wasm.exists():
+        raise SystemExit(f'{RUNTIME_ZIP} is missing wasi/python.wasm')
+    return wasm
+
 def run_fixture(fixture: Path) -> int:
     if not NODE:
         raise SystemExit('node is required for this probe')
     with tempfile.TemporaryDirectory() as td:
         work = Path(td)
+        runtime_root = work / 'runtime'
+        runtime_root.mkdir()
+        wasm = extract_runtime(runtime_root)
+        (runtime_root / 'tmp/.config').mkdir(parents=True)
         shutil.copy2(fixture, work / fixture.name)
         runner = work / 'run.js'; runner.write_text(RUNNER)
-        cmd = [NODE, '--stack-size=32768', str(runner), str(PYWASM), str(SRC), str(THIRD_PARTY_SITE), str(ROOT), str(work), fixture.name]
+        cmd = [NODE, '--stack-size=32768', str(runner), str(wasm), str(runtime_root), str(work), fixture.name]
         cp = subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         print(f'=== {fixture.name} ===')
         print(cp.stdout)
@@ -55,8 +82,6 @@ def run_fixture(fixture: Path) -> int:
         return cp.returncode or 1
 
 def main() -> int:
-    if not PYWASM.exists():
-        raise SystemExit(f'missing {PYWASM}')
     fixtures = sorted((ROOT / 'fixtures/generated').glob('*.epub'))
     fixtures += sorted((ROOT / 'consumer-app/src/assets/samples').glob('*.epub'))
     failures = 0

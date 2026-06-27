@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, os, shutil, stat, subprocess, zipfile
+import argparse, os, shutil, stat, subprocess, zipfile, zoneinfo
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,6 +49,35 @@ def add_tree(z: zipfile.ZipFile, src: Path, arc_root: Path):
         if should_include(p):
             write_file(z, p, arc_root / p.relative_to(src))
 
+def find_utc_zoneinfo() -> Path:
+    for base in zoneinfo.TZPATH:
+        candidate = Path(base) / 'UTC'
+        if candidate.is_file():
+            return candidate
+    raise SystemExit(
+        'missing host UTC zoneinfo file; install tzdata or set up a system '
+        'zoneinfo database with UTC'
+    )
+
+def require_inputs():
+    missing = []
+    for rel in INCLUDE_FILES:
+        if not (ROOT / rel).is_file():
+            missing.append(rel)
+    for rel in INCLUDE_DIRS:
+        if not (ROOT / rel).is_dir():
+            missing.append(rel)
+    calibre_init = ROOT / 'third_party/calibre/src/calibre/__init__.py'
+    if not calibre_init.is_file():
+        missing.append('third_party/calibre/src/calibre/__init__.py')
+    if missing:
+        joined = '\n  '.join(missing)
+        raise SystemExit(
+            'missing runtime input(s):\n'
+            f'  {joined}\n'
+            'Run: git submodule update --init --recursive third_party/calibre'
+        )
+
 def find_wasm_opt() -> str:
     env = os.environ.get('BINARYEN_WASM_OPT')
     candidates = [env, '/tmp/binaryen130/bin/wasm-opt', shutil.which('wasm-opt')]
@@ -80,11 +109,13 @@ def maybe_precompile_android(force: bool = False):
 def build_zip(out: Path, include_cwasm: bool):
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_suffix(out.suffix + '.tmp')
+    utc_zoneinfo = find_utc_zoneinfo()
     with zipfile.ZipFile(tmp, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         write_bytes(z, Path('runtime-manifest.json'), ("""{\n  "python_wasm": "wasi/python.wasm",\n  "exception_handling": "exnref",\n  "generated_by": "scripts/build_runtime_artifacts.py",\n  "android_precompiled": %s\n}\n""" % ('true' if include_cwasm and ANDROID_CWASM.exists() else 'false')).encode())
         write_file(z, EXNREF_WASM, Path('wasi/python.wasm'), stored=True)
         if include_cwasm and ANDROID_CWASM.exists():
             write_file(z, ANDROID_CWASM, Path('wasi/python-aarch64-android.cwasm'), stored=True)
+        write_file(z, utc_zoneinfo, Path('wasi/usr/share/zoneinfo/UTC'))
         for f in INCLUDE_FILES:
             rel = Path(f); write_file(z, ROOT / rel, rel)
         for d in INCLUDE_DIRS:
@@ -102,6 +133,7 @@ def main():
     ap.add_argument('--force', action='store_true')
     ap.add_argument('--android-precompile', action='store_true', help='also produce wasi/python-aarch64-android.cwasm for Android')
     args = ap.parse_args()
+    require_inputs()
     ensure_exnref(args.force)
     if args.android_precompile:
         maybe_precompile_android(args.force)

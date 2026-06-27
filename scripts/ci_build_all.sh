@@ -10,6 +10,10 @@ export WASMTIME="${WASMTIME:-$ROOT/.toolchain/wasmtime/wasmtime}"
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/android-sdk}"
 export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
 
+if [[ ! -f third_party/calibre/src/calibre/__init__.py ]]; then
+  git submodule update --init --recursive third_party/calibre
+fi
+
 python3 scripts/static_wasi/build_wasi_libs.py
 python3 scripts/static_wasi/build_static_wasi_python.py
 python3 scripts/build_runtime_artifacts.py --android-precompile
@@ -18,6 +22,7 @@ python3 scripts/static_wasi/probe_static_wasi_conversion.py
 (
   cd consumer-app
   bun install --frozen-lockfile
+  bun build src/wasiPythonWorker.ts --outfile src/assets/wasiPythonWorker.bundle.txt --target browser --format esm
   bun run typecheck
   bun build index.html --outdir dist --target browser
 )

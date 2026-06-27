@@ -58,6 +58,23 @@ if ((${#missing[@]})); then
   exit 1
 fi
 
+ensure_calibre_submodule() {
+  if [[ -f third_party/calibre/src/calibre/__init__.py ]]; then
+    return
+  fi
+  if ! command -v git >/dev/null 2>&1; then
+    printf 'Missing calibre submodule and git is not available.\n' >&2
+    printf 'Run: git submodule update --init --recursive third_party/calibre\n' >&2
+    exit 1
+  fi
+  echo "Initializing calibre submodule"
+  git submodule update --init --recursive third_party/calibre
+  if [[ ! -f third_party/calibre/src/calibre/__init__.py ]]; then
+    printf 'calibre submodule did not provide third_party/calibre/src/calibre/__init__.py\n' >&2
+    exit 1
+  fi
+}
+
 download() {
   local url=$1
   local out=$2
@@ -117,6 +134,7 @@ install_wasmtime() {
 install_wasi_sdk
 install_binaryen
 install_wasmtime
+ensure_calibre_submodule
 
 echo "Building WASI third-party libraries"
 python3 scripts/static_wasi/build_wasi_libs.py
@@ -138,6 +156,7 @@ echo "Building web app"
 (
   cd consumer-app
   bun install --frozen-lockfile
+  bun build src/wasiPythonWorker.ts --outfile src/assets/wasiPythonWorker.bundle.txt --target browser --format esm
   bun run typecheck
   rm -rf dist
   bun build index.html --outdir dist --target browser

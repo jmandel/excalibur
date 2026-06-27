@@ -15,6 +15,8 @@ TARBALLS = {
     'xz-5.4.6.tar.gz': 'https://github.com/tukaani-project/xz/releases/download/v5.4.6/xz-5.4.6.tar.gz',
     'jpeg-3.0.3.tar.gz': 'https://github.com/libjpeg-turbo/libjpeg-turbo/archive/refs/tags/3.0.3.tar.gz',
     'libpng-1.6.43.tar.gz': 'https://download.sourceforge.net/libpng/libpng-1.6.43.tar.gz',
+    'libxml2-2.12.9.tar.xz': 'https://download.gnome.org/sources/libxml2/2.12/libxml2-2.12.9.tar.xz',
+    'libxslt-1.1.39.tar.xz': 'https://download.gnome.org/sources/libxslt/1.1/libxslt-1.1.39.tar.xz',
     'lcms2-2.16.tar.gz': 'https://github.com/mm2/Little-CMS/releases/download/lcms2.16/lcms2-2.16.tar.gz',
     'freetype-2.13.2.tar.gz': 'https://download.savannah.gnu.org/releases/freetype/freetype-2.13.2.tar.gz',
     'tiff-4.6.0.tar.gz': 'https://download.osgeo.org/libtiff/tiff-4.6.0.tar.gz',
@@ -78,8 +80,14 @@ def refresh_config_scripts(src: Path) -> None:
         for target in src.rglob(name):
             shutil.copy2(replacement, target)
 
+def archive_stem(name: str) -> str:
+    for suffix in ['.tar.gz', '.tar.xz', '.tar.bz2', '.tgz']:
+        if name.endswith(suffix):
+            return name.removesuffix(suffix)
+    return name
+
 def unpack(name, dest_name=None):
-    stem = dest_name or name.removesuffix('.tar.gz')
+    stem = dest_name or archive_stem(name)
     dest = BUILD / stem
     if dest.exists(): shutil.rmtree(dest)
     with tarfile.open(SRC / name) as t:
@@ -173,6 +181,9 @@ def main():
 
     jpeg = unpack('jpeg-3.0.3.tar.gz', 'libjpeg-turbo-3.0.3'); build_libjpeg_turbo(jpeg, env_sjlj, sjlj)
     png = unpack('libpng-1.6.43.tar.gz'); refresh_config_scripts(png); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static'], png, env_sjlj); run(['make','-j2','libpng16.la'], png, env_sjlj); run(['make','install-libLTLIBRARIES','install-pkgincludeHEADERS','install-binSCRIPTS','install-pkgconfigDATA'], png, env_sjlj)
+    xml = unpack('libxml2-2.12.9.tar.xz'); refresh_config_scripts(xml); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static','--without-python','--without-iconv','--without-icu','--without-threads','--without-zlib','--without-lzma','--without-http','--without-ftp','--without-modules'], xml, env_sjlj); run(['make','-j2'], xml, env_sjlj); run(['make','install'], xml, env_sjlj)
+    xml_env = env_sjlj | {'PATH': f'{PREFIX}/bin:{env_sjlj["PATH"]}', 'CPPFLAGS': f'-I{PREFIX}/include -I{PREFIX}/include/libxml2', 'LIBS': f'-L{PREFIX}/lib'}
+    xslt = unpack('libxslt-1.1.39.tar.xz'); refresh_config_scripts(xslt); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static','--without-python','--without-crypto',f'--with-libxml-prefix={PREFIX}'], xslt, xml_env); run(['make','-j2'], xslt, xml_env); run(['make','install'], xslt, xml_env)
     lcms = unpack('lcms2-2.16.tar.gz', 'lcms2-2.16'); refresh_config_scripts(lcms); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static'], lcms, env); run(['make','-j2'], lcms, env); run(['make','install'], lcms, env)
     ft = unpack('freetype-2.13.2.tar.gz'); refresh_config_scripts(ft); run(['./configure','--host=wasm32-wasi',f'--prefix={PREFIX}','--disable-shared','--enable-static','--without-harfbuzz','--without-brotli'], ft, env_sjlj); run(['make','-j2'], ft, env_sjlj); run(['make','install'], ft, env_sjlj)
     cmake_build(unpack('tiff-4.6.0.tar.gz'), 'tiff-build', ['-Dtiff-tools=OFF','-Dtiff-tests=OFF','-Dtiff-contrib=OFF','-Dtiff-docs=OFF','-Djbig=OFF','-Dwebp=OFF','-Dzstd=OFF','-Djpeg=ON','-Dzlib=ON','-Dlzma=ON'], env_sjlj)
