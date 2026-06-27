@@ -50,3 +50,43 @@ Initial calibre source observations from prior reconnaissance:
   - The OEB and AZW3 writer modules themselves did not require Qt once image helpers were stubbed.
 
 This is a strong signal that a reduced-calibre Pyodide package is plausible: the first hurdle is a clean shim/runtime bootstrap, not a deep rewrite.
+
+### End-to-end native pipeline reached
+
+- Added reusable experiment bootstrap: `experiments/calibre_bootstrap.py`.
+- Added `experiments/convert_with_plumber.py`, which invokes calibre's real `Plumber` conversion path with default option recommendations.
+- To avoid importing the full plugin registry, bootstrap now provides a narrow `calibre.customize.ui` registry for:
+  - EPUB/K EPUB input
+  - MOBI/AZW/AZW3-family input
+  - AZW3 output
+  - MOBI output experimentally, though legacy MOBI output currently drags Qt rasterization
+  - default input/output profiles
+  - no-op preprocess/postprocess plugins
+- Added `experiments/inspect_azw3.py` for PalmDB/MOBI/KF8 sanity checks.
+- Added `experiments/run_fixture_conversions.py` regression harness.
+
+Successful conversions using calibre's default Plumber transform path:
+
+- `fixtures/generated/minimal.epub` -> `experiments/out/minimal.azw3`
+- `fixtures/generated/css-image.epub` -> `experiments/out/css-image.azw3`
+- `fixtures/generated/svg.epub` -> `experiments/out/svg.azw3`
+- generated AZW3 inputs round-trip through `MOBIInput` -> `AZW3Output`:
+  - `minimal.azw3` -> `minimal-roundtrip.azw3`
+  - `css-image.azw3` -> `css-image-roundtrip.azw3`
+  - `svg.azw3` -> `svg-roundtrip.azw3`
+
+Key shims/fallbacks added during execution:
+
+- `calibre_extensions.fast_html_entities.replace_all_entities`
+- pure-Python PalmDOC decompressor in the `cPalmdoc` shim
+- no-subprocess `calibre.utils.safe_atexit` shim to avoid `calibre-parallel`
+- localization fallbacks because source checkout lacks built `resources/localization/*.calibre_msgpack`
+- empty metadata plugin registry for jacket/identifier transforms
+
+Native dependency finding:
+
+- `html5_parser` and `lxml` must be built against the same `libxml2`; the venv required rebuilding `lxml` with `--no-binary lxml` after installing system `libxml2-dev`/`libxslt1-dev`.
+
+Current limitation:
+
+- True legacy `.mobi` output fixture generation failed because MOBI output's MOBI6 path imports Qt SVG rasterization. This is not on the target output path, but we still need a legal legacy `.mobi` input fixture or a better MOBI-output workaround if we want old-MOBI input coverage.

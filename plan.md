@@ -194,3 +194,50 @@ Next probe should move from importability to execution:
 2. Run `create_oebbook()` on the resulting OPF.
 3. Instantiate `AZW3Output` or directly call the writer path with minimal opts.
 4. Determine which conversion transforms are truly required versus optional polish.
+
+## Native end-to-end status
+
+Reached a native end-to-end pipeline using calibre's real `Plumber` default transform path:
+
+```text
+EPUB -> EPUBInput -> OEBReader/OEBBook -> default Plumber transforms -> AZW3Output/writer8 -> AZW3
+AZW3 -> MOBIInput/Mobi8Reader -> OEBReader/OEBBook -> default Plumber transforms -> AZW3Output/writer8 -> AZW3
+```
+
+Repro command:
+
+```bash
+.venv/bin/python experiments/run_fixture_conversions.py
+```
+
+The command converts all generated EPUB fixtures to AZW3, then round-trips those AZW3 files through the MOBI-family input path back to AZW3, and validates basic KF8 structure.
+
+Important: this is not yet Pyodide. It is the native source-tree compatibility oracle that the Pyodide package should replicate.
+
+## Pyodide translation implications from native run
+
+Required Python packages likely include:
+
+- `lxml`
+- `html5-parser` or a workaround for EPUB3 nav parsing
+- `css-parser`
+- `Pillow` for image metadata/JPEG handling
+- `python-dateutil`
+- `tzlocal`/`tzdata`
+- `regex`, `chardet`, `beautifulsoup4`, `html5lib`, `webencodings`, `msgpack` depending on imported surfaces
+
+Required WASM/runtime shims now known:
+
+- `calibre_extensions.icu`
+- `calibre_extensions.speedup`
+- `calibre_extensions.cPalmdoc` with compress + decompress
+- `calibre_extensions.fast_html_entities`
+- `calibre_extensions.translator`
+- `calibre_extensions.imageops`
+- `calibre.utils.safe_atexit` no-subprocess behavior
+- source-checkout localization fallbacks or packaged localization resources
+- narrow `calibre.customize.ui` plugin registry
+
+Next big task:
+
+- Package this exact native bootstrap into a browser/Pyodide experiment and run `experiments/run_fixture_conversions.py` equivalent inside WASM.
