@@ -10,7 +10,7 @@ BUILD = WORK / 'third-party-build'
 PREFIX = WORK / 'third-party-wasi'
 WASI_SDK = Path(os.environ.get('WASI_SDK_PATH', Path.home() / '.local/share/wasmpy-build/wasi-sdk'))
 TARBALLS = {
-    'zlib-1.3.1.tar.gz': 'https://zlib.net/fossils/zlib-1.3.1.tar.gz',
+    'zlib-1.3.1.tar.gz': 'https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz',
     'bzip2-1.0.8.tar.gz': 'https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz',
     'xz-5.4.6.tar.gz': 'https://github.com/tukaani-project/xz/releases/download/v5.4.6/xz-5.4.6.tar.gz',
     'jpeg-3.0.3.tar.gz': 'https://github.com/libjpeg-turbo/libjpeg-turbo/archive/refs/tags/3.0.3.tar.gz',
