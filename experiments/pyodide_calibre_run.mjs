@@ -64,6 +64,8 @@ except Exception:
     pass
 from convert_with_plumber import convert
 from inspect_azw3 import inspect
+from check_profiles import main as check_profiles_main
+check_profiles_main()
 
 fixtures = sorted(Path('/repo/fixtures/generated').glob('*.epub'))
 outdir = Path('/repo/experiments/pyodide-out')
@@ -87,6 +89,21 @@ for epub in fixtures:
     info = inspect(mobi_out)
     print('PYODIDE VALID', info)
     assert info['is_kf8']
+
+# Explicit option override smoke: ensure device profiles and conversion options are
+# surfaced as inputs to the WASM pipeline.
+profile_out = outdir / 'minimal-kindle-pw3-options.azw3'
+print('PYODIDE CONVERT OPTIONS minimal.epub ->', profile_out.name)
+convert(Path('/repo/fixtures/generated/minimal.epub'), profile_out, options={
+    'output_profile': 'kindle_pw3',
+    'margin_left': 0,
+    'margin_right': 0,
+    'base_font_size': 14,
+    'dont_compress': True,
+})
+info = inspect(profile_out)
+print('PYODIDE VALID OPTIONS', info)
+assert info['is_kf8']
 
 for azw3 in sorted(outdir.glob('*.azw3')):
     if azw3.stem.endswith('-roundtrip'):

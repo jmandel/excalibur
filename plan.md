@@ -297,3 +297,62 @@ Currently shim/replace:
 4. Replace the temporary `html5_parser` fallback with a more faithful parser story.
 5. Package only the needed calibre subset instead of mounting the whole repo.
 6. Normalize structural comparisons to ignore harmless padding-record variation.
+
+## Conversion settings and device-profile input contract
+
+The WASM package must not hard-code a single conversion profile. It must expose calibre's conversion options as caller-supplied inputs, equivalent to `ebook-convert`/`Plumber.merge_ui_recommendations()`.
+
+Required API shape for WASM package:
+
+```ts
+type ConvertOptions = Record<string, unknown>;
+
+convertToAzw3(inputBytes, inputExt, options?: ConvertOptions): Uint8Array
+```
+
+Where `options` maps directly to calibre option names, for example:
+
+```json
+{
+  "input_profile": "default",
+  "output_profile": "kindle_pw3",
+  "margin_left": 0,
+  "margin_right": 0,
+  "margin_top": 5,
+  "margin_bottom": 5,
+  "base_font_size": 14,
+  "font_size_mapping": null,
+  "disable_font_rescaling": false,
+  "line_height": 0,
+  "minimum_line_height": 120,
+  "dont_compress": false,
+  "no_inline_toc": false,
+  "mobi_toc_at_start": false,
+  "toc_title": null,
+  "prefer_author_sort": false,
+  "share_not_sync": false,
+  "transform_css_rules": null,
+  "transform_html_rules": null,
+  "extra_css": null
+}
+```
+
+The package must include and expose calibre's device profiles from `calibre.customize.profiles`, especially Kindle output profiles. Current required Kindle output profiles verified by `experiments/check_profiles.py`:
+
+- `kindle`
+- `kindle_dx`
+- `kindle_fire`
+- `kindle_oasis`
+- `kindle_pw`
+- `kindle_pw3`
+- `kindle_scribe`
+- `kindle_voyage`
+
+Related tooling:
+
+- `experiments/list_conversion_options.py` inventories input/pipeline/output options for a conversion pair.
+- `experiments/list_profiles.py` inventories all input/output profiles.
+- `experiments/check_profiles.py` fails if expected Kindle profiles are not exposed by the reduced registry.
+- `experiments/convert_with_plumber.py` now accepts `--options-json` / `--options-file` and passes options through `Plumber.merge_ui_recommendations()`.
+
+Current regression harnesses include an explicit options smoke test using `output_profile=kindle_pw3`, zero side margins, `base_font_size=14`, and `dont_compress=true` in both native and Pyodide/WASM runs.

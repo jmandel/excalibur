@@ -12,6 +12,20 @@ KEYS = [
 ]
 
 
+def normalize(row: dict) -> dict:
+    row = dict(row)
+    # calibre sometimes inserts/removes a zero padding record depending on host
+    # details. It shifts first_non_text_record and record count but does not
+    # change semantic KF8 records. Normalize that for native-vs-Pyodide checks.
+    prefixes = dict(row['record_prefix_counts'])
+    pad = prefixes.pop('', 0)
+    if pad:
+        row['records'] -= pad
+        row['first_non_text_record'] -= pad
+    row['record_prefix_counts'] = prefixes
+    return row
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument('left_dir')
@@ -26,7 +40,7 @@ def main() -> int:
             print('MISS', rf)
             failures += 1
             continue
-        a, b = summary(lf), summary(rf)
+        a, b = normalize(summary(lf)), normalize(summary(rf))
         diffs = {k: (a[k], b[k]) for k in KEYS if a[k] != b[k]}
         if diffs:
             print('DIFF', lf.name, diffs)

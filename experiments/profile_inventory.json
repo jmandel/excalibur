@@ -1,0 +1,1117 @@
+{
+  "input_profiles": [
+    {
+      "short_name": "cybookg3",
+      "name": "Cybook G3",
+      "screen_size": [
+        600,
+        800
+      ],
+      "dpi": 168.451,
+      "fbase": 16,
+      "fkey": [
+        12,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "cybook_opus",
+      "name": "Cybook Opus",
+      "screen_size": [
+        600,
+        800
+      ],
+      "dpi": 200,
+      "fbase": 16,
+      "fkey": [
+        12,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "default",
+      "name": "Default Input Profile",
+      "screen_size": [
+        1600,
+        1200
+      ],
+      "dpi": 100,
+      "fbase": 12,
+      "fkey": [
+        5,
+        7,
+        9,
+        12,
+        13.5,
+        17,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "hanlinv3",
+      "name": "Hanlin V3",
+      "screen_size": [
+        584,
+        754
+      ],
+      "dpi": 168.451,
+      "fbase": 16,
+      "fkey": [
+        12,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "hanlinv5",
+      "name": "Hanlin V5",
+      "screen_size": [
+        584,
+        754
+      ],
+      "dpi": 200,
+      "fbase": 16,
+      "fkey": [
+        12,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "illiad",
+      "name": "Illiad",
+      "screen_size": [
+        760,
+        925
+      ],
+      "dpi": 160.0,
+      "fbase": 12,
+      "fkey": [
+        7.5,
+        9,
+        10,
+        12,
+        15.5,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "irexdr1000",
+      "name": "IRex Digital Reader 1000",
+      "screen_size": [
+        1024,
+        1280
+      ],
+      "dpi": 160,
+      "fbase": 16,
+      "fkey": [
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "irexdr800",
+      "name": "IRex Digital Reader 800",
+      "screen_size": [
+        768,
+        1024
+      ],
+      "dpi": 160,
+      "fbase": 16,
+      "fkey": [
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "kindle",
+      "name": "Kindle",
+      "screen_size": [
+        525,
+        640
+      ],
+      "dpi": 168.451,
+      "fbase": 16,
+      "fkey": [
+        12,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "msreader",
+      "name": "Microsoft Reader",
+      "screen_size": [
+        480,
+        652
+      ],
+      "dpi": 96,
+      "fbase": 13,
+      "fkey": [
+        10,
+        11,
+        13,
+        16,
+        18,
+        20,
+        22,
+        26
+      ]
+    },
+    {
+      "short_name": "mobipocket",
+      "name": "Mobipocket Books",
+      "screen_size": [
+        600,
+        800
+      ],
+      "dpi": 96,
+      "fbase": 18,
+      "fkey": [
+        14,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        26
+      ]
+    },
+    {
+      "short_name": "nook",
+      "name": "Nook",
+      "screen_size": [
+        600,
+        800
+      ],
+      "dpi": 167,
+      "fbase": 16,
+      "fkey": [
+        12,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "sony",
+      "name": "Sony Reader",
+      "screen_size": [
+        584,
+        754
+      ],
+      "dpi": 168.451,
+      "fbase": 12,
+      "fkey": [
+        7.5,
+        9,
+        10,
+        12,
+        15.5,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "sony300",
+      "name": "Sony Reader 300",
+      "screen_size": [
+        584,
+        754
+      ],
+      "dpi": 200,
+      "fbase": 12,
+      "fkey": [
+        7.5,
+        9,
+        10,
+        12,
+        15.5,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "sony900",
+      "name": "Sony Reader 900",
+      "screen_size": [
+        584,
+        978
+      ],
+      "dpi": 168.451,
+      "fbase": 12,
+      "fkey": [
+        7.5,
+        9,
+        10,
+        12,
+        15.5,
+        20,
+        22,
+        24
+      ]
+    }
+  ],
+  "output_profiles": [
+    {
+      "short_name": "cybookg3",
+      "name": "Cybook G3",
+      "screen_size": [
+        600,
+        800
+      ],
+      "dpi": 168.451,
+      "fbase": 16,
+      "fkey": [
+        12,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "cybook_opus",
+      "name": "Cybook Opus",
+      "screen_size": [
+        590,
+        775
+      ],
+      "dpi": 200,
+      "fbase": 16,
+      "fkey": [
+        12,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "default",
+      "name": "Default Output Profile",
+      "screen_size": [
+        1600,
+        1200
+      ],
+      "dpi": 100,
+      "fbase": 12,
+      "fkey": [
+        5,
+        7,
+        9,
+        12,
+        13.5,
+        17,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "generic_eink",
+      "name": "Generic e-ink",
+      "screen_size": [
+        590,
+        775
+      ],
+      "dpi": 168.451,
+      "fbase": 12,
+      "fkey": [
+        7.5,
+        9,
+        10,
+        12,
+        15.5,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "generic_eink_hd",
+      "name": "Generic e-ink HD",
+      "screen_size": [
+        10000,
+        10000
+      ],
+      "dpi": 168.451,
+      "fbase": 12,
+      "fkey": [
+        7.5,
+        9,
+        10,
+        12,
+        15.5,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "generic_eink_large",
+      "name": "Generic e-ink large",
+      "screen_size": [
+        600,
+        999
+      ],
+      "dpi": 168.451,
+      "fbase": 12,
+      "fkey": [
+        7.5,
+        9,
+        10,
+        12,
+        15.5,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "hanlinv3",
+      "name": "Hanlin V3",
+      "screen_size": [
+        584,
+        754
+      ],
+      "dpi": 168.451,
+      "fbase": 16,
+      "fkey": [
+        12,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "hanlinv5",
+      "name": "Hanlin V5",
+      "screen_size": [
+        584,
+        754
+      ],
+      "dpi": 200,
+      "fbase": 16,
+      "fkey": [
+        12,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "illiad",
+      "name": "Illiad",
+      "screen_size": [
+        760,
+        925
+      ],
+      "dpi": 160.0,
+      "fbase": 12,
+      "fkey": [
+        7.5,
+        9,
+        10,
+        12,
+        15.5,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "ipad",
+      "name": "iPad",
+      "screen_size": [
+        768,
+        1024
+      ],
+      "dpi": 132.0,
+      "fbase": 12,
+      "fkey": [
+        5,
+        7,
+        9,
+        12,
+        13.5,
+        17,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "ipad3",
+      "name": "iPad 3",
+      "screen_size": [
+        2048,
+        1536
+      ],
+      "dpi": 264.0,
+      "fbase": 12,
+      "fkey": [
+        5,
+        7,
+        9,
+        12,
+        13.5,
+        17,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "irexdr1000",
+      "name": "IRex Digital Reader 1000",
+      "screen_size": [
+        1024,
+        1280
+      ],
+      "dpi": 160,
+      "fbase": 16,
+      "fkey": [
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "irexdr800",
+      "name": "IRex Digital Reader 800",
+      "screen_size": [
+        768,
+        1024
+      ],
+      "dpi": 160,
+      "fbase": 16,
+      "fkey": [
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "jetbook5",
+      "name": "JetBook 5-inch",
+      "screen_size": [
+        480,
+        640
+      ],
+      "dpi": 168.451,
+      "fbase": 12,
+      "fkey": [
+        5,
+        7,
+        9,
+        12,
+        13.5,
+        17,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "kindle",
+      "name": "Kindle",
+      "screen_size": [
+        525,
+        640
+      ],
+      "dpi": 168.451,
+      "fbase": 16,
+      "fkey": [
+        12,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "kindle_dx",
+      "name": "Kindle DX",
+      "screen_size": [
+        744,
+        1022
+      ],
+      "dpi": 150.0,
+      "fbase": 12,
+      "fkey": [
+        5,
+        7,
+        9,
+        12,
+        13.5,
+        17,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "kindle_fire",
+      "name": "Kindle Fire",
+      "screen_size": [
+        570,
+        1016
+      ],
+      "dpi": 169.0,
+      "fbase": 12,
+      "fkey": [
+        5,
+        7,
+        9,
+        12,
+        13.5,
+        17,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "kindle_oasis",
+      "name": "Kindle Oasis",
+      "screen_size": [
+        1264,
+        1680
+      ],
+      "dpi": 300.0,
+      "fbase": 16,
+      "fkey": [
+        12,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "kindle_pw",
+      "name": "Kindle PaperWhite",
+      "screen_size": [
+        658,
+        940
+      ],
+      "dpi": 212.0,
+      "fbase": 16,
+      "fkey": [
+        12,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "kindle_pw3",
+      "name": "Kindle PaperWhite 3",
+      "screen_size": [
+        1072,
+        1430
+      ],
+      "dpi": 300.0,
+      "fbase": 16,
+      "fkey": [
+        12,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "kindle_scribe",
+      "name": "Kindle Scribe",
+      "screen_size": [
+        1860,
+        2480
+      ],
+      "dpi": 300.0,
+      "fbase": 16,
+      "fkey": [
+        12,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "kindle_voyage",
+      "name": "Kindle Voyage",
+      "screen_size": [
+        1080,
+        1430
+      ],
+      "dpi": 300.0,
+      "fbase": 16,
+      "fkey": [
+        12,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "kobo",
+      "name": "Kobo Reader",
+      "screen_size": [
+        536,
+        710
+      ],
+      "dpi": 168.451,
+      "fbase": 12,
+      "fkey": [
+        7.5,
+        9,
+        10,
+        12,
+        15.5,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "msreader",
+      "name": "Microsoft Reader",
+      "screen_size": [
+        480,
+        652
+      ],
+      "dpi": 96,
+      "fbase": 13,
+      "fkey": [
+        10,
+        11,
+        13,
+        16,
+        18,
+        20,
+        22,
+        26
+      ]
+    },
+    {
+      "short_name": "mobipocket",
+      "name": "Mobipocket Books",
+      "screen_size": [
+        600,
+        800
+      ],
+      "dpi": 96,
+      "fbase": 18,
+      "fkey": [
+        14,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        26
+      ]
+    },
+    {
+      "short_name": "nook",
+      "name": "Nook",
+      "screen_size": [
+        600,
+        730
+      ],
+      "dpi": 167,
+      "fbase": 16,
+      "fkey": [
+        12,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "nook_color",
+      "name": "Nook Color",
+      "screen_size": [
+        600,
+        900
+      ],
+      "dpi": 169,
+      "fbase": 16,
+      "fkey": [
+        12,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "nook_hd_plus",
+      "name": "Nook HD+",
+      "screen_size": [
+        1280,
+        1920
+      ],
+      "dpi": 132.0,
+      "fbase": 12,
+      "fkey": [
+        5,
+        7,
+        9,
+        12,
+        13.5,
+        17,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "pocketbook_inkpad3",
+      "name": "PocketBook Inkpad 3 (Pro) and X",
+      "screen_size": [
+        1404,
+        1872
+      ],
+      "dpi": 227.0,
+      "fbase": 12,
+      "fkey": [
+        5,
+        7,
+        9,
+        12,
+        13.5,
+        17,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "pocketbook_lux",
+      "name": "PocketBook Lux (1-5) and Basic 4",
+      "screen_size": [
+        758,
+        1024
+      ],
+      "dpi": 212.0,
+      "fbase": 12,
+      "fkey": [
+        5,
+        7,
+        9,
+        12,
+        13.5,
+        17,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "pocketbook_hd",
+      "name": "PocketBook PocketBook HD Touch (1-3)",
+      "screen_size": [
+        1072,
+        1448
+      ],
+      "dpi": 300.0,
+      "fbase": 12,
+      "fkey": [
+        5,
+        7,
+        9,
+        12,
+        13.5,
+        17,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "pocketbook_900",
+      "name": "PocketBook Pro 900",
+      "screen_size": [
+        810,
+        1180
+      ],
+      "dpi": 150.0,
+      "fbase": 12,
+      "fkey": [
+        5,
+        7,
+        9,
+        12,
+        13.5,
+        17,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "pocketbook_pro_912",
+      "name": "PocketBook Pro 912",
+      "screen_size": [
+        825,
+        1200
+      ],
+      "dpi": 155.0,
+      "fbase": 12,
+      "fkey": [
+        5,
+        7,
+        9,
+        12,
+        13.5,
+        17,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "galaxy",
+      "name": "Samsung Galaxy",
+      "screen_size": [
+        600,
+        1280
+      ],
+      "dpi": 132.0,
+      "fbase": 12,
+      "fkey": [
+        5,
+        7,
+        9,
+        12,
+        13.5,
+        17,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "sony",
+      "name": "Sony Reader",
+      "screen_size": [
+        590,
+        775
+      ],
+      "dpi": 168.451,
+      "fbase": 12,
+      "fkey": [
+        7.5,
+        9,
+        10,
+        12,
+        15.5,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "sony300",
+      "name": "Sony Reader 300",
+      "screen_size": [
+        590,
+        775
+      ],
+      "dpi": 200,
+      "fbase": 12,
+      "fkey": [
+        7.5,
+        9,
+        10,
+        12,
+        15.5,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "sony900",
+      "name": "Sony Reader 900",
+      "screen_size": [
+        600,
+        999
+      ],
+      "dpi": 168.451,
+      "fbase": 12,
+      "fkey": [
+        7.5,
+        9,
+        10,
+        12,
+        15.5,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "sony-landscape",
+      "name": "Sony Reader Landscape",
+      "screen_size": [
+        784,
+        1012
+      ],
+      "dpi": 168.451,
+      "fbase": 12,
+      "fkey": [
+        7.5,
+        9,
+        10,
+        12,
+        15.5,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "sonyt3",
+      "name": "Sony Reader T3",
+      "screen_size": [
+        758,
+        934
+      ],
+      "dpi": 168.451,
+      "fbase": 12,
+      "fkey": [
+        7.5,
+        9,
+        10,
+        12,
+        15.5,
+        20,
+        22,
+        24
+      ]
+    },
+    {
+      "short_name": "tablet",
+      "name": "Tablet",
+      "screen_size": [
+        10000,
+        10000
+      ],
+      "dpi": 132.0,
+      "fbase": 12,
+      "fkey": [
+        5,
+        7,
+        9,
+        12,
+        13.5,
+        17,
+        20,
+        22,
+        24
+      ]
+    }
+  ]
+}

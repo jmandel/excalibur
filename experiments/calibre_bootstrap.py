@@ -218,11 +218,13 @@ def available_input_formats():
 def available_output_formats():
     return {'azw3', 'mobi'}
 def input_profiles():
-    from calibre.customize.profiles import InputProfile
-    yield InputProfile(None)
+    from calibre.customize import profiles
+    for cls in profiles.input_profiles:
+        yield cls(None)
 def output_profiles():
-    from calibre.customize.profiles import OutputProfile
-    yield OutputProfile(None)
+    from calibre.customize import profiles
+    for cls in profiles.output_profiles:
+        yield cls(None)
 def run_plugins_on_preprocess(path, *a, **k):
     return path
 def run_plugins_on_postprocess(path, fmt, *a, **k):

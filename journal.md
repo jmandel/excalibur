@@ -133,3 +133,20 @@ Important caveats:
   - `experiments/azw3_summary.py`
   - `experiments/compare_summaries.py`
 - Native-vs-Pyodide summary comparison mostly matches. Some round-trip outputs differ by a blank/padding record (`''` record prefix) and therefore record count / `first_non_text_record`; core KF8 structure remains valid. This should be normalized in future comparison logic.
+
+### Conversion option/profile input support
+
+- User pointed out calibre's many conversion settings/device profiles must be available as WASM inputs.
+- Fixed reduced `calibre.customize.ui` registry to expose all calibre input/output profiles from `calibre.customize.profiles`, not just `default`.
+- Verified Kindle output profiles are available:
+  - `kindle`, `kindle_dx`, `kindle_fire`, `kindle_oasis`, `kindle_pw`, `kindle_pw3`, `kindle_scribe`, `kindle_voyage`.
+- Added `experiments/list_conversion_options.py` to inventory all input/pipeline/output options for a conversion pair.
+- Added `experiments/list_profiles.py` and generated `experiments/profile_inventory.json` locally for inspection.
+- Added `experiments/check_profiles.py` as a regression check for Kindle profiles.
+- Extended `experiments/convert_with_plumber.py` with `--options-json` / `--options-file` support and an `options` dict parameter, mapped to `Plumber.merge_ui_recommendations()` with `OptionRecommendation.HIGH`.
+- Added native and Pyodide option smoke tests using:
+  - `output_profile=kindle_pw3`
+  - `margin_left=0`
+  - `margin_right=0`
+  - `base_font_size=14`
+  - `dont_compress=true`
