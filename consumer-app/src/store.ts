@@ -79,16 +79,20 @@ export const useStore = create<State>((set, get) => ({
     };
     set({ phase: 'converting', book, stage: 'import', label: 'Warming up the converter', fraction: 0.04, lastLine: '', error: undefined, resultUrl: undefined, resultName: undefined });
 
-    // Forward-only progress driven by calibre's log lines.
+    // Forward-only progress driven by calibre's log lines. Benign sandbox noise
+    // (calibre can't probe write-access in WASM, deprecations, etc.) is hidden from
+    // the line shown to users so the converting screen stays calm.
+    const NOISE = /no write access|using a temporary|deprecat|^\s*warning\b/i;
     let maxFraction = 0.04;
     onRuntimeLine((line) => {
       const hint = matchStage(line);
       const trimmed = line.replace(/^ERR\s+/, '').trim();
+      const showable = trimmed && !NOISE.test(trimmed) ? trimmed : '';
       if (hint && hint.fraction >= maxFraction) {
         maxFraction = hint.fraction;
-        set({ stage: hint.stage, label: hint.label, fraction: hint.fraction, lastLine: trimmed });
-      } else if (trimmed) {
-        set({ lastLine: trimmed });
+        set({ stage: hint.stage, label: hint.label, fraction: hint.fraction, lastLine: showable });
+      } else if (showable) {
+        set({ lastLine: showable });
       }
     });
 
