@@ -30,9 +30,11 @@ function DevicePicker() {
   return (
     <label className="devicePicker">
       <span>Format for</span>
-      <select value={device} onChange={(e) => setDevice(e.target.value)}>
-        {devices.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
-      </select>
+      <div className="selectWrap">
+        <select value={device} onChange={(e) => setDevice(e.target.value)}>
+          {devices.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+        </select>
+      </div>
     </label>
   );
 }

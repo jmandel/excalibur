@@ -124,20 +124,22 @@ button, input, select { font: inherit; color: inherit; }
 
 .dzFooter {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
+  flex-direction: column;
+  gap: 16px;
   margin-top: 18px;
-  flex-wrap: wrap;
 }
-.devicePicker { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.92rem; }
-.devicePicker > span { white-space: nowrap; }
+.devicePicker { display: flex; flex-direction: column; gap: 6px; min-width: 0; color: var(--muted); font-size: 0.92rem; }
+.devicePicker > span { font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; }
+.selectWrap { width: 100%; }
 .devicePicker select {
+  width: 100%;
+  max-width: 100%;
   background: var(--card);
   border: 1px solid var(--line-strong);
   border-radius: 9px;
-  padding: 8px 12px;
+  padding: 10px 12px;
   color: var(--ink);
+  text-overflow: ellipsis;
 }
 .sampleLink {
   background: none; border: none; padding: 0; cursor: pointer;
