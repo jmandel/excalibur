@@ -15,7 +15,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -33,6 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.exe.kindleconverter.convert.ActiveProgress
 import dev.exe.kindleconverter.convert.stageBaseFraction
+import dev.exe.kindleconverter.ui.components.LocalIcons
 import dev.exe.kindleconverter.data.Book
 import dev.exe.kindleconverter.data.BookStatus
 import dev.exe.kindleconverter.data.profileName
@@ -121,7 +121,7 @@ private fun ReadyView(book: Book, port: Int, onViewLibrary: () -> Unit, onAddMor
 private fun ErrorView(book: Book, onReconvert: (Book) -> Unit) {
     val cs = MaterialTheme.colorScheme
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Rounded.ErrorOutline, null, tint = cs.error, modifier = Modifier.size(28.dp))
+        Icon(LocalIcons.ErrorOutline, null, tint = cs.error, modifier = Modifier.size(28.dp))
         Spacer(Modifier.width(10.dp))
         Text("Couldn't convert", style = MaterialTheme.typography.headlineSmall)
     }

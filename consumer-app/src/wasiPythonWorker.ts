@@ -3,6 +3,7 @@ import { WASI, File, OpenFile, ConsoleStdout, PreopenDirectory, Directory } from
 
 interface RuntimeFiles { wasm: Uint8Array; rootEntries: [string, File | Directory][]; }
 let runtime: RuntimeFiles | undefined;
+let compiledModule: WebAssembly.Module | undefined;
 let root: any;
 let rootDir: any;
 let counter = 0;
@@ -79,8 +80,11 @@ async function runPython(code: string) {
     ],
     { debug: false },
   );
-  const mod = await WebAssembly.compile(runtime.wasm);
-  const inst = await WebAssembly.instantiate(mod, { wasi_snapshot_preview1: wasi.wasiImport });
+  // Compile the (large) CPython+calibre module once and reuse it; each run gets a
+  // fresh instance (and fresh linear memory), so interpreter state stays clean while
+  // we skip re-compiling the whole module on every conversion.
+  if (!compiledModule) compiledModule = await WebAssembly.compile(runtime.wasm);
+  const inst = await WebAssembly.instantiate(compiledModule, { wasi_snapshot_preview1: wasi.wasiImport });
   wasi.start(inst as any);
 }
 

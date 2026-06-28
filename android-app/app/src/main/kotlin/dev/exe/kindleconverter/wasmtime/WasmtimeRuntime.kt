@@ -26,10 +26,26 @@ class WasmtimeRuntime(private val context: Context) {
     ) { val ok: Boolean get() = exitCode == 0 && error.isBlank() }
 
     private external fun nativeRunPython(wasmPath: String, cwasmPath: String, runtimeRoot: String, workDir: String, preferPrecompiled: Boolean): String
+    private external fun nativePrewarm(wasmPath: String, cwasmPath: String, preferPrecompiled: Boolean): Boolean
 
     companion object {
         init { System.loadLibrary("kindle_wasm_runtime") }
         private const val ASSET = "app/calibre-runtime.zip"
+    }
+
+    private fun wasmPath(root: File) = File(root, "wasi/python.wasm").absolutePath
+    // Writable, persistent path: the native side deserializes it if present, else
+    // compiles the module and writes it here so later launches start fast.
+    private fun cwasmPath(root: File) = File(root, "wasi/python-aarch64-android.cwasm").absolutePath
+
+    /**
+     * Compile (or load the on-disk) module ahead of any conversion. Heavy on first
+     * ever launch (~4s compile + serialize); fast afterwards (deserialize). Call off
+     * the main thread at app start so conversions never wait on the compile.
+     */
+    fun prewarm(progress: (String) -> Unit = {}): Boolean {
+        val root = prepareRuntime(progress)
+        return runCatching { nativePrewarm(wasmPath(root), cwasmPath(root), true) }.getOrDefault(false)
     }
 
     fun prepareRuntime(progress: (String) -> Unit = {}): File {
@@ -58,8 +74,8 @@ class WasmtimeRuntime(private val context: Context) {
         lineListener = onLine
         val json = try {
             nativeRunPython(
-                File(root, "wasi/python.wasm").absolutePath,
-                File(root, "wasi/python-aarch64-android.cwasm").takeIf { it.exists() }?.absolutePath.orEmpty(),
+                wasmPath(root),
+                cwasmPath(root),
                 root.absolutePath,
                 workDir.absolutePath,
                 preferPrecompiled,
