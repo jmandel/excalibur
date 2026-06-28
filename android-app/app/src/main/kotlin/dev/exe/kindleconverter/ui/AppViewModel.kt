@@ -52,6 +52,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch { graph.settings.setThemeMode(mode) }
     fun setDynamicColor(on: Boolean) = viewModelScope.launch { graph.settings.setDynamicColor(on) }
 
+    fun startServer() = ConverterService.startAndConvert(getApplication())
     fun exitServer() = ConverterService.exit(getApplication())
     fun ensureServer() = ConverterService.startAndConvert(getApplication())
+
+    fun setPort(port: Int) = viewModelScope.launch {
+        graph.settings.setPort(port)
+        if (ServerBus.state.value.running) ConverterService.restart(getApplication())
+    }
 }

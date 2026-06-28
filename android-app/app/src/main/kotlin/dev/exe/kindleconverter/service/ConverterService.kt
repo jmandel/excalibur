@@ -33,18 +33,23 @@ class ConverterService : LifecycleService() {
         super.onCreate()
         graph = AppGraph.get(this)
         startForeground(NOTIF_ID, buildNotification("Starting…"))
-        lifecycleScope.launch {
-            val port = graph.settings.settings.first().serverPort
-            val actual = KindleHttpServer(graph.db.bookDao()).also { server = it }.start(port)
-            ServerBus.state.value = ServerBus.Info(running = true, port = actual)
-            notify(notifText())
-        }
+        lifecycleScope.launch { bindServer() }
+    }
+
+    /** (Re)bind the HTTP server to the current settings port. */
+    private suspend fun bindServer() {
+        server?.stop()
+        val port = graph.settings.settings.first().serverPort
+        val actual = KindleHttpServer(graph.db.bookDao()).also { server = it }.start(port)
+        ServerBus.state.value = ServerBus.Info(running = true, port = actual)
+        notify(notifText())
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         when (intent?.action) {
             ACTION_EXIT -> { shutdown(); return START_NOT_STICKY }
+            ACTION_RESTART -> lifecycleScope.launch { bindServer() }
             ACTION_CONVERT -> lifecycleScope.launch { graph.conversion.drain(); notify(notifText()) }
         }
         return START_NOT_STICKY
@@ -102,12 +107,21 @@ class ConverterService : LifecycleService() {
         private const val NOTIF_ID = 1
         const val ACTION_CONVERT = "dev.exe.kindleconverter.CONVERT"
         const val ACTION_EXIT = "dev.exe.kindleconverter.EXIT"
+        const val ACTION_RESTART = "dev.exe.kindleconverter.RESTART"
 
         /** Ensure the server is up and drain any queued conversions. */
         fun startAndConvert(context: Context) {
             ContextCompat.startForegroundService(
                 context,
                 Intent(context, ConverterService::class.java).setAction(ACTION_CONVERT)
+            )
+        }
+
+        /** Rebind the server to the latest settings port (used after a port change). */
+        fun restart(context: Context) {
+            ContextCompat.startForegroundService(
+                context,
+                Intent(context, ConverterService::class.java).setAction(ACTION_RESTART)
             )
         }
 

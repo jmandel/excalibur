@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.DropdownMenu
@@ -30,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -48,20 +50,33 @@ import dev.exe.kindleconverter.convert.stageBaseFraction
 import dev.exe.kindleconverter.data.Book
 import dev.exe.kindleconverter.data.BookStatus
 import dev.exe.kindleconverter.service.ServerBus
+import dev.exe.kindleconverter.ui.components.PortDialog
 import dev.exe.kindleconverter.ui.components.StageRail
+import dev.exe.kindleconverter.ui.components.rememberAddresses
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     books: List<Book>,
     server: ServerBus.Info,
+    configuredPort: Int,
     onOpenBook: (String) -> Unit,
     onAddBooks: () -> Unit,
     onOpenSettings: () -> Unit,
     onReconvert: (Book) -> Unit,
     onDelete: (String) -> Unit,
+    onStartServer: () -> Unit,
     onStopServer: () -> Unit,
+    onSetPort: (Int) -> Unit,
 ) {
+    var showPortDialog by remember { mutableStateOf(false) }
+    if (showPortDialog) {
+        PortDialog(
+            current = if (server.running) server.port else configuredPort,
+            onDismiss = { showPortDialog = false },
+            onConfirm = { showPortDialog = false; onSetPort(it) },
+        )
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -80,7 +95,12 @@ fun LibraryScreen(
         },
     ) { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
-            ServerBanner(server, onStopServer)
+            ServerBanner(
+                server = server,
+                configuredPort = configuredPort,
+                onToggle = { on -> if (on) onStartServer() else onStopServer() },
+                onEditPort = { showPortDialog = true },
+            )
             if (books.isEmpty()) {
                 EmptyLibrary(onAddBooks)
             } else {
@@ -96,28 +116,59 @@ fun LibraryScreen(
 }
 
 @Composable
-private fun ServerBanner(server: ServerBus.Info, onStop: () -> Unit) {
+private fun ServerBanner(
+    server: ServerBus.Info,
+    configuredPort: Int,
+    onToggle: (Boolean) -> Unit,
+    onEditPort: () -> Unit,
+) {
     val cs = MaterialTheme.colorScheme
+    val addresses = rememberAddresses()
+    val ip = addresses.firstOrNull()?.ip
+    val port = if (server.running) server.port else configuredPort
     Row(
         Modifier.fillMaxWidth()
             .background(cs.primaryContainer.copy(alpha = 0.4f))
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(9.dp).clip(CircleShape).background(if (server.running) cs.primary else cs.outline))
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                if (server.running) "Send to Kindle is on" else "Server stopped",
+                if (server.running) "Send to Kindle" else "Send to Kindle is off",
                 style = MaterialTheme.typography.titleSmall,
             )
-            if (server.running) Text(
-                "Port ${server.port}",
-                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                color = cs.onSurfaceVariant,
-            )
+            if (server.running) {
+                // ip:port, with the port a tap target for changing it.
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "${ip ?: "…"}:",
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                        color = cs.onSurfaceVariant,
+                    )
+                    Row(
+                        modifier = Modifier.clip(CircleShape).clickable(onClick = onEditPort).padding(horizontal = 4.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "$port",
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                            color = cs.primary,
+                        )
+                        Spacer(Modifier.width(3.dp))
+                        Icon(Icons.Rounded.Edit, "Change port", tint = cs.primary, modifier = Modifier.size(13.dp))
+                    }
+                }
+            } else {
+                Text(
+                    "Turn on to serve books to your Kindle",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = cs.onSurfaceVariant,
+                )
+            }
         }
-        if (server.running) TextButton(onClick = onStop) { Text("Stop") }
+        Switch(checked = server.running, onCheckedChange = onToggle)
     }
 }
 

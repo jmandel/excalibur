@@ -91,6 +91,7 @@ private fun AppNav(vm: AppViewModel, onPickBooks: () -> Unit) {
     val books by vm.books.collectAsStateWithLifecycle()
     val server by vm.server.collectAsState()
     val active by vm.active.collectAsState()
+    val settings by vm.settings.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         vm.openBook.collect { id -> nav.navigate("book/$id") }
@@ -101,12 +102,15 @@ private fun AppNav(vm: AppViewModel, onPickBooks: () -> Unit) {
             LibraryScreen(
                 books = books,
                 server = server,
+                configuredPort = settings.serverPort,
                 onOpenBook = { nav.navigate("book/$it") },
                 onAddBooks = onPickBooks,
                 onOpenSettings = { nav.navigate("settings") },
                 onReconvert = { vm.reconvert(it) },
                 onDelete = { vm.delete(it) },
+                onStartServer = { vm.startServer() },
                 onStopServer = { vm.exitServer() },
+                onSetPort = { vm.setPort(it) },
             )
         }
         composable("book/{id}") { entry ->
@@ -125,13 +129,13 @@ private fun AppNav(vm: AppViewModel, onPickBooks: () -> Unit) {
             }
         }
         composable("settings") {
-            val settings by vm.settings.collectAsStateWithLifecycle()
             SettingsScreen(
                 settings = settings,
-                serverPort = if (server.running) server.port else 0,
+                serverRunningPort = if (server.running) server.port else null,
                 onSetProfile = { vm.setProfile(it) },
                 onSetTheme = { vm.setThemeMode(it) },
                 onSetDynamic = { vm.setDynamicColor(it) },
+                onSetPort = { vm.setPort(it) },
                 onBack = { nav.popBackStack() },
             )
         }

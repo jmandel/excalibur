@@ -24,6 +24,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,17 +39,27 @@ import dev.exe.kindleconverter.data.AppSettings
 import dev.exe.kindleconverter.data.KINDLE_PROFILES
 import dev.exe.kindleconverter.data.ThemeMode
 import dev.exe.kindleconverter.data.profileName
+import dev.exe.kindleconverter.ui.components.PortDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     settings: AppSettings,
-    serverPort: Int,
+    serverRunningPort: Int?,
     onSetProfile: (String) -> Unit,
     onSetTheme: (ThemeMode) -> Unit,
     onSetDynamic: (Boolean) -> Unit,
+    onSetPort: (Int) -> Unit,
     onBack: () -> Unit,
 ) {
+    var showPortDialog by remember { mutableStateOf(false) }
+    if (showPortDialog) {
+        PortDialog(
+            current = serverRunningPort ?: settings.serverPort,
+            onDismiss = { showPortDialog = false },
+            onConfirm = { showPortDialog = false; onSetPort(it) },
+        )
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -93,11 +104,18 @@ fun SettingsScreen(
 
             Divider()
             SectionLabel("Server")
-            val port = if (serverPort > 0) serverPort else settings.serverPort
-            Text(
-                "Port $port",
-                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
-            )
+            val port = serverRunningPort ?: settings.serverPort
+            Row(
+                Modifier.fillMaxWidth().clickable { showPortDialog = true }.padding(vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Port $port",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = { showPortDialog = true }) { Text("Change") }
+            }
             Text(
                 "The Kindle connects to this device's address on this port.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
