@@ -129,13 +129,18 @@ private fun AppNav(vm: AppViewModel, onPickBooks: () -> Unit) {
             }
         }
         composable("settings") {
+            val syncStatus by vm.syncStatus.collectAsState()
+            val syncing by vm.syncing.collectAsState()
             SettingsScreen(
                 settings = settings,
                 serverRunningPort = if (server.running) server.port else null,
+                syncStatus = syncStatus,
+                syncing = syncing,
                 onSetProfile = { vm.setProfile(it) },
                 onSetTheme = { vm.setThemeMode(it) },
                 onSetDynamic = { vm.setDynamicColor(it) },
                 onSetPort = { vm.setPort(it) },
+                onSyncToKindle = { vm.syncToKindle() },
                 onBack = { nav.popBackStack() },
             )
         }

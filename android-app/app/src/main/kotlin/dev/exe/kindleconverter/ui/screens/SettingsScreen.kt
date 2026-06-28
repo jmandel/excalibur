@@ -1,17 +1,22 @@
 package dev.exe.kindleconverter.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -27,12 +32,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import dev.exe.kindleconverter.data.AppSettings
@@ -46,12 +53,18 @@ import dev.exe.kindleconverter.ui.components.PortDialog
 fun SettingsScreen(
     settings: AppSettings,
     serverRunningPort: Int?,
+    syncStatus: String?,
+    syncing: Boolean,
     onSetProfile: (String) -> Unit,
     onSetTheme: (ThemeMode) -> Unit,
     onSetDynamic: (Boolean) -> Unit,
     onSetPort: (Int) -> Unit,
+    onSyncToKindle: () -> Unit,
     onBack: () -> Unit,
 ) {
+    // MTP transfers stall if the screen sleeps mid-sync, so hold it awake while syncing.
+    KeepScreenOn(syncing)
+
     var showPortDialog by remember { mutableStateOf(false) }
     if (showPortDialog) {
         PortDialog(
@@ -68,7 +81,11 @@ fun SettingsScreen(
             )
         },
     ) { pad ->
-        Column(Modifier.padding(pad).fillMaxWidth().padding(horizontal = 20.dp)) {
+        Column(
+            Modifier.padding(pad).fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp),
+        ) {
             SectionLabel("Kindle model")
             Text(
                 "New conversions are formatted for this device.",
@@ -120,6 +137,25 @@ fun SettingsScreen(
                 "The Kindle connects to this device's address on this port.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            Divider()
+            SectionLabel("Kindle over USB (experimental)")
+            Text(
+                "Connect a Kindle with a USB-OTG cable, unlock it and allow file transfer, then sync your converted books straight onto it. Books removed here are removed from the Kindle on the next sync.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(10.dp))
+            Button(onClick = onSyncToKindle, enabled = !syncing) {
+                if (syncing) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                    Spacer(Modifier.width(10.dp))
+                }
+                Text(if (syncing) "Syncing…" else "Sync to Kindle")
+            }
+            syncStatus?.let {
+                Spacer(Modifier.height(10.dp))
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -159,4 +195,14 @@ private fun ThemeMode.label() = when (this) {
     ThemeMode.SYSTEM -> "Follow system"
     ThemeMode.LIGHT -> "Light"
     ThemeMode.DARK -> "Dark"
+}
+
+/** Keep the display on while [active] (e.g. during a USB sync), restoring the flag after. */
+@Composable
+private fun KeepScreenOn(active: Boolean) {
+    val view = LocalView.current
+    DisposableEffect(active) {
+        view.keepScreenOn = active
+        onDispose { view.keepScreenOn = false }
+    }
 }
