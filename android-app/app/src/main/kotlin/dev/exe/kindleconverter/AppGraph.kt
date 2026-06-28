@@ -7,6 +7,7 @@ import dev.exe.kindleconverter.convert.ConversionManager
 import dev.exe.kindleconverter.data.AppDatabase
 import dev.exe.kindleconverter.data.LibraryRepository
 import dev.exe.kindleconverter.data.MIGRATION_1_2
+import dev.exe.kindleconverter.data.MIGRATION_2_3
 import dev.exe.kindleconverter.data.SettingsStore
 import dev.exe.kindleconverter.data.Storage
 import dev.exe.kindleconverter.wasmtime.WasmtimeRuntime
@@ -15,7 +16,7 @@ import dev.exe.kindleconverter.wasmtime.WasmtimeRuntime
 class AppGraph private constructor(context: Context) {
     private val app = context.applicationContext
     val db = Room.databaseBuilder(app, AppDatabase::class.java, "library.db")
-        .addMigrations(MIGRATION_1_2).build()
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
     val storage = Storage(app)
     val repo = LibraryRepository(app, db.bookDao(), storage)
     val settings = SettingsStore(app)

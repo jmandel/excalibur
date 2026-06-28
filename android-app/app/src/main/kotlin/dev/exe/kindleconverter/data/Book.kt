@@ -28,6 +28,8 @@ data class Book(
     val convertedAt: Long = 0,
     /** Comma-separated user tags (for organizing the library / future Kindle collections). */
     val tags: String = "",
+    /** SHA-256 of the imported source file — used to dedupe re-imports of the same file. */
+    val contentHash: String = "",
 ) {
     val isReady get() = status == BookStatus.READY && azw3Path != null
     val tagSet get() = tags.split(',').map { it.trim() }.filter { it.isNotEmpty() }.distinct()

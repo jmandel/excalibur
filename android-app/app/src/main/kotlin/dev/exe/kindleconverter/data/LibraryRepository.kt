@@ -30,6 +30,13 @@ class LibraryRepository(
             requireNotNull(input) { "Cannot open $uri" }
             dest.outputStream().use { input.copyTo(it) }
         }
+        // Dedupe: if the exact same bytes are already in the library, drop this copy and
+        // return the existing book instead of creating a duplicate row.
+        val hash = sha256(dest)
+        dao.findByHash(hash)?.let { existing ->
+            storage.purge(id)
+            return@withContext existing.id
+        }
         // Prefer the book's own metadata over the filename so the library reads nicely.
         val meta = if (ext == "epub") readEpubMeta(dest) else null
         val fallback = display.substringBeforeLast('.').replace('_', ' ').replace('-', ' ').trim().ifBlank { "Untitled" }
@@ -39,7 +46,7 @@ class LibraryRepository(
                 id = id, title = meta?.first ?: fallback, author = meta?.second.orEmpty(),
                 originalName = display, ext = ext,
                 originalSize = dest.length(), status = BookStatus.QUEUED, profile = profile,
-                stage = Stage.IMPORT, createdAt = now,
+                stage = Stage.IMPORT, createdAt = now, contentHash = hash,
             )
         )
         id
@@ -59,6 +66,16 @@ class LibraryRepository(
             title to author
         }
     }.getOrNull()
+
+    private fun sha256(file: File): String {
+        val md = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { ins ->
+            val buf = ByteArray(8192)
+            var n = ins.read(buf)
+            while (n >= 0) { md.update(buf, 0, n); n = ins.read(buf) }
+        }
+        return md.digest().joinToString("") { "%02x".format(it) }
+    }
 
     private fun decodeEntities(s: String) = s
         .replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")

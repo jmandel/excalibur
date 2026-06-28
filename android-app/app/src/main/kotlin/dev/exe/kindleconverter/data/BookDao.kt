@@ -23,6 +23,9 @@ interface BookDao {
     @Query("SELECT * FROM books WHERE id = :id")
     suspend fun get(id: String): Book?
 
+    @Query("SELECT * FROM books WHERE contentHash = :hash LIMIT 1")
+    suspend fun findByHash(hash: String): Book?
+
     @Query("SELECT * FROM books WHERE status = 'READY' AND azw3Path IS NOT NULL ORDER BY convertedAt DESC")
     suspend fun ready(): List<Book>
 
@@ -41,7 +44,7 @@ interface BookDao {
     @Query("DELETE FROM books WHERE id = :id") suspend fun delete(id: String)
 }
 
-@Database(entities = [Book::class], version = 2, exportSchema = false)
+@Database(entities = [Book::class], version = 3, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun bookDao(): BookDao
@@ -51,5 +54,12 @@ abstract class AppDatabase : RoomDatabase() {
 val MIGRATION_1_2 = object : Migration(1, 2) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE books ADD COLUMN tags TEXT NOT NULL DEFAULT ''")
+    }
+}
+
+/** v3 adds `contentHash` for import dedup. */
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE books ADD COLUMN contentHash TEXT NOT NULL DEFAULT ''")
     }
 }

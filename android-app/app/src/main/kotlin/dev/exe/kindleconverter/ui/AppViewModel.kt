@@ -1,7 +1,10 @@
 package dev.exe.kindleconverter.ui
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.exe.kindleconverter.AppGraph
@@ -94,9 +97,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _syncing.value = false
     }
 
-    /** A stable, human-readable per-install id (e.g. "Pixel-7-a3f0") for this phone's Kindle folder. */
+    /**
+     * A stable, human-readable per-install id for this phone's Kindle folder, e.g.
+     * "Pixel-7-a3f0c1d2". Derived from ANDROID_ID so it's the SAME after an uninstall/
+     * reinstall (ANDROID_ID only changes on a factory reset or a change of signing key) —
+     * so a reinstall keeps managing the same folder on the Kindle instead of orphaning it.
+     * The value is still cached in settings, leaving room to rename it later.
+     */
+    @SuppressLint("HardwareIds")
     private fun makeDeviceTag(): String {
-        val model = android.os.Build.MODEL.replace(Regex("[^A-Za-z0-9]+"), "-").trim('-').take(20).ifBlank { "phone" }
-        return "$model-${java.util.UUID.randomUUID().toString().take(4)}"
+        val model = Build.MODEL.replace(Regex("[^A-Za-z0-9]+"), "-").trim('-').take(20).ifBlank { "phone" }
+        val androidId = Settings.Secure.getString(getApplication<Application>().contentResolver, Settings.Secure.ANDROID_ID)
+        val suffix = androidId?.takeIf { it.isNotBlank() }?.take(8) ?: java.util.UUID.randomUUID().toString().take(8)
+        return "$model-$suffix"
     }
 }
