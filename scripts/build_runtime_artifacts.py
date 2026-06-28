@@ -112,7 +112,10 @@ def build_zip(out: Path, include_cwasm: bool):
     utc_zoneinfo = find_utc_zoneinfo()
     with zipfile.ZipFile(tmp, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         write_bytes(z, Path('runtime-manifest.json'), ("""{\n  "python_wasm": "wasi/python.wasm",\n  "exception_handling": "exnref",\n  "generated_by": "scripts/build_runtime_artifacts.py",\n  "android_precompiled": %s\n}\n""" % ('true' if include_cwasm and ANDROID_CWASM.exists() else 'false')).encode())
-        write_file(z, EXNREF_WASM, Path('wasi/python.wasm'), stored=True)
+        # Deflate the wasm (~23MB -> ~8MB). It's unpacked to disk once at first launch
+        # either way, so compressing only adds a one-time decompress and shrinks both the
+        # APK and the web download by ~15MB.
+        write_file(z, EXNREF_WASM, Path('wasi/python.wasm'), stored=False)
         if include_cwasm and ANDROID_CWASM.exists():
             write_file(z, ANDROID_CWASM, Path('wasi/python-aarch64-android.cwasm'), stored=True)
         write_file(z, utc_zoneinfo, Path('wasi/usr/share/zoneinfo/UTC'))

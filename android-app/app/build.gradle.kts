@@ -19,7 +19,13 @@ android {
     buildFeatures { compose = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
-    packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
+    packaging {
+        resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+        // Compress native libs in the APK (libwasmtime.so is ~20MB, stored uncompressed
+        // by default). They're extracted at install, so this shrinks the download by
+        // ~13MB with no runtime cost.
+        jniLibs { useLegacyPackaging = true }
+    }
 }
 
 kotlin { jvmToolchain(17) }
@@ -30,7 +36,10 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-text-google-fonts")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended")
+    // material-icons-core (the small common set) comes transitively via material3; we
+    // deliberately do NOT pull material-icons-extended (thousands of icons, ~tens of MB
+    // of dex unshrunk in a debug build). The few icons not in core are defined locally.
+    implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")

@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.MoreVert
@@ -50,6 +49,7 @@ import dev.exe.kindleconverter.convert.stageBaseFraction
 import dev.exe.kindleconverter.data.Book
 import dev.exe.kindleconverter.data.BookStatus
 import dev.exe.kindleconverter.service.ServerBus
+import dev.exe.kindleconverter.ui.components.LocalIcons
 import dev.exe.kindleconverter.ui.components.PortDialog
 import dev.exe.kindleconverter.ui.components.StageRail
 import dev.exe.kindleconverter.ui.components.rememberAddresses
@@ -181,7 +181,7 @@ private fun BookRow(book: Book, onClick: () -> Unit, onReconvert: () -> Unit, on
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            Icons.AutoMirrored.Rounded.MenuBook, null,
+            LocalIcons.MenuBook, null,
             tint = cs.onSurfaceVariant, modifier = Modifier.size(22.dp),
         )
         Spacer(Modifier.width(14.dp))
@@ -222,7 +222,7 @@ private fun EmptyLibrary(onAddBooks: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(Icons.AutoMirrored.Rounded.MenuBook, null, modifier = Modifier.size(56.dp), tint = MaterialTheme.colorScheme.outline)
+        Icon(LocalIcons.MenuBook, null, modifier = Modifier.size(56.dp), tint = MaterialTheme.colorScheme.outline)
         Spacer(Modifier.height(16.dp))
         Text("Your library is empty", style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(8.dp))

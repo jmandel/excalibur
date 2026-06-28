@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -85,7 +83,7 @@ fun AddressCard(port: Int, modifier: Modifier = Modifier) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(url, style = MonoUrl, color = cs.onSurface)
-                Icon(Icons.Rounded.ContentCopy, "Copy", tint = cs.primary)
+                Icon(LocalIcons.ContentCopy, "Copy", tint = cs.primary)
             }
             if (primary.isHotspotLikely) {
                 Spacer(Modifier.height(6.dp))
