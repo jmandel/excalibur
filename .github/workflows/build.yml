@@ -60,7 +60,7 @@ jobs:
           yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
           "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
             "platform-tools" "platforms;android-35" "build-tools;35.0.0" \
-            "ndk;27.2.12479018" "cmake;3.22.1"
+            "ndk;28.2.13676358" "cmake;3.22.1"
 
       - name: Install WASI SDK, Binaryen, and Wasmtime
         run: |
