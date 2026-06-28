@@ -27,3 +27,7 @@ consumer-app/src/assets/calibre-runtime.zip
 android-app/app/src/main/assets/app/calibre-runtime.zip
 public/
 .toolchain/
+
+# signing keys (provided via CI secrets, never committed)
+*.keystore
+release.keystore

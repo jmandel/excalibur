@@ -80,17 +80,32 @@ jobs:
           .toolchain/binaryen/bin/wasm-opt --version
           .toolchain/wasmtime/wasmtime --version
 
+      - name: Decode release keystore (if the secret is set)
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "${{ github.workspace }}/release.keystore"
+            echo "Release keystore decoded."
+          else
+            echo "No keystore secret; release will fall back to debug signing."
+          fi
+
       - name: Build full toolchain, web app, and APK
         env:
           BINARYEN_WASM_OPT: ${{ github.workspace }}/.toolchain/binaryen/bin/wasm-opt
           WASMTIME: ${{ github.workspace }}/.toolchain/wasmtime/wasmtime
+          KEYSTORE_FILE: ${{ github.workspace }}/release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: scripts/ci_build_all.sh
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: excalibur-debug-apk
-          path: android-app/app/build/outputs/apk/debug/app-debug.apk
+          name: excalibur-apk
+          path: android-app/app/build/outputs/apk/release/app-release.apk
 
       - name: Upload Pages artifact
         if: github.ref == 'refs/heads/main'

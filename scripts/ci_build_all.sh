@@ -34,8 +34,10 @@ python3 scripts/static_wasi/probe_static_wasi_conversion.py
   bun build index.html --outdir dist --target browser
 )
 
-./android-app/gradlew -p android-app assembleDebug
+# Release build: R8-minified and signed with a stable key (from KEYSTORE_* env when
+# present, else the debug key as a fallback). Smaller, non-debuggable, updatable.
+./android-app/gradlew -p android-app assembleRelease
 
 mkdir -p public/downloads
 cp -a consumer-app/dist/. public/
-cp android-app/app/build/outputs/apk/debug/app-debug.apk public/downloads/excalibur-debug.apk
+cp android-app/app/build/outputs/apk/release/app-release.apk public/downloads/excalibur.apk

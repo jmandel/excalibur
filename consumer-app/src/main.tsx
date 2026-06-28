@@ -148,7 +148,7 @@ function App() {
             <strong>Reading on a Kindle?</strong>
             <span>Excalibur for Android sends books straight to it over Wi-Fi — no cable, no account.</span>
           </div>
-          <a className="apkBtn" href="downloads/excalibur-debug.apk" download>
+          <a className="apkBtn" href="downloads/excalibur.apk" download>
             <Smartphone /> Get the Android app
           </a>
         </div>
