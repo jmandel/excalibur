@@ -36,7 +36,7 @@ import kotlin.coroutines.resume
 private const val TAG = "kindle-usb"
 private const val ACTION_USB_PERMISSION = "dev.exe.kindleconverter.USB_PERMISSION"
 private const val AMAZON_VENDOR_ID = 0x1949
-private const val MTP_ROOT = -1 // 0xFFFFFFFF: the storage root parent in MTP
+internal const val MTP_ROOT = -1 // 0xFFFFFFFF: the storage root parent in MTP
 const val KINDLE_DOCS_FOLDER = "documents"
 const val KINDLE_OURS_FOLDER = "Excalibur"
 
@@ -60,23 +60,40 @@ sealed interface SyncOutcome {
 fun findKindle(usb: UsbManager): UsbDevice? =
     usb.deviceList.values.firstOrNull { it.vendorId == AMAZON_VENDOR_ID }
 
-/** Thin MTP helper bound to one storage. All calls run on a background thread. */
-private class KindleMtp(val device: MtpDevice, val storageId: Int) {
-    fun list(parent: Int): List<MtpObjectInfo> =
-        (device.getObjectHandles(storageId, 0, parent) ?: IntArray(0)).asList().mapNotNull { device.getObjectInfo(it) }
+/** One object in a Kindle folder, decoupled from android.mtp types so [reconcile] is plain-JVM testable. */
+data class RemoteEntry(val handle: Int, val name: String, val size: Long, val isFolder: Boolean)
 
-    fun child(parent: Int, name: String): MtpObjectInfo? =
+/**
+ * The folder operations [reconcile] needs. Backed by MTP on-device ([KindleMtp]); a small
+ * in-memory fake stands in for it in unit tests, so the sync decision logic can be exercised
+ * with no Kindle and no USB stack.
+ */
+interface KindleStore {
+    fun list(parent: Int): List<RemoteEntry>
+    fun ensureFolder(parent: Int, name: String): Int
+    fun push(parent: Int, name: String, file: File): Boolean
+    fun delete(handle: Int): Boolean
+}
+
+/** [KindleStore] over a live MTP device + storage. All calls block, so run on a background thread. */
+private class KindleMtp(val device: MtpDevice, val storageId: Int) : KindleStore {
+    override fun list(parent: Int): List<RemoteEntry> =
+        (device.getObjectHandles(storageId, 0, parent) ?: IntArray(0)).asList()
+            .mapNotNull { device.getObjectInfo(it) }
+            .map { RemoteEntry(it.objectHandle, it.name, it.compressedSize.toLong(), it.format == MtpConstants.FORMAT_ASSOCIATION) }
+
+    private fun child(parent: Int, name: String): RemoteEntry? =
         list(parent).firstOrNull { it.name.equals(name, ignoreCase = true) }
 
-    fun ensureFolder(parent: Int, name: String): Int {
-        child(parent, name)?.takeIf { it.format == MtpConstants.FORMAT_ASSOCIATION }?.let { return it.objectHandle }
+    override fun ensureFolder(parent: Int, name: String): Int {
+        child(parent, name)?.takeIf { it.isFolder }?.let { return it.handle }
         val info = MtpObjectInfo.Builder()
             .setStorageId(storageId).setName(name).setFormat(MtpConstants.FORMAT_ASSOCIATION).setParent(parent).build()
         return device.sendObjectInfo(info)?.objectHandle ?: error("Kindle: couldn't create folder \"$name\"")
     }
 
-    fun push(parent: Int, name: String, file: File): Boolean {
-        child(parent, name)?.let { device.deleteObject(it.objectHandle) } // overwrite
+    override fun push(parent: Int, name: String, file: File): Boolean {
+        child(parent, name)?.let { device.deleteObject(it.handle) } // overwrite
         val info = MtpObjectInfo.Builder()
             .setStorageId(storageId).setName(name).setFormat(MtpConstants.FORMAT_UNDEFINED)
             .setParent(parent).setCompressedSize(file.length()).build()
@@ -86,7 +103,7 @@ private class KindleMtp(val device: MtpDevice, val storageId: Int) {
         }
     }
 
-    fun delete(handle: Int): Boolean = device.deleteObject(handle)
+    override fun delete(handle: Int): Boolean = device.deleteObject(handle)
 }
 
 /**
@@ -98,29 +115,29 @@ private class KindleMtp(val device: MtpDevice, val storageId: Int) {
  * bookmarks, page index). We preserve it across re-pushes, but remove it when the book
  * itself goes, so orphaned sidecars don't pile up.
  */
-private fun reconcile(mtp: KindleMtp, wantById: Map<String, File>, onLog: (String) -> Unit): SyncResult {
-    val docs = mtp.ensureFolder(MTP_ROOT, KINDLE_DOCS_FOLDER)
-    val ours = mtp.ensureFolder(docs, KINDLE_OURS_FOLDER)
-    val children = mtp.list(ours)
-    val books = children.filter { it.format != MtpConstants.FORMAT_ASSOCIATION }.associateBy { it.name }
+internal fun reconcile(store: KindleStore, wantById: Map<String, File>, onLog: (String) -> Unit): SyncResult {
+    val docs = store.ensureFolder(MTP_ROOT, KINDLE_DOCS_FOLDER)
+    val ours = store.ensureFolder(docs, KINDLE_OURS_FOLDER)
+    val children = store.list(ours)
+    val books = children.filter { !it.isFolder }.associateBy { it.name }
     // <id>.sdr sidecar folders, keyed by the book id they belong to.
-    val sidecars = children.filter { it.format == MtpConstants.FORMAT_ASSOCIATION && it.name.endsWith(".sdr") }
+    val sidecars = children.filter { it.isFolder && it.name.endsWith(".sdr") }
         .associateBy { it.name.removeSuffix(".sdr") }
 
     var pushed = 0; var skipped = 0; var deleted = 0
     for ((id, file) in wantById) {
         val name = "$id.azw3"
         val ex = books[name]
-        if (ex != null && ex.compressedSize.toLong() == file.length()) { skipped++; continue }
+        if (ex != null && ex.size == file.length()) { skipped++; continue }
         onLog("→ pushing ${file.name}")
-        if (mtp.push(ours, name, file)) pushed++ else onLog("  ! push failed for $name")
+        if (store.push(ours, name, file)) pushed++ else onLog("  ! push failed for $name")
     }
-    for ((name, info) in books) {
+    for ((name, entry) in books) {
         val id = name.removeSuffix(".azw3")
         if (id !in wantById) {
             onLog("✗ removing $name")
-            if (mtp.delete(info.objectHandle)) deleted++
-            sidecars[id]?.let { mtp.delete(it.objectHandle) } // drop the orphaned reading-state folder too
+            if (store.delete(entry.handle)) deleted++
+            sidecars[id]?.let { store.delete(it.handle) } // drop the orphaned reading-state folder too
         }
     }
     return SyncResult(pushed, deleted, skipped)
