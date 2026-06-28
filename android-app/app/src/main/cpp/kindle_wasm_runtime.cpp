@@ -105,27 +105,38 @@ static bool preopen(wasi_config_t *wasi, const std::string &host, const char *gu
     auto f = WASMTIME_WASI_FILE_PERMS_READ | (write ? WASMTIME_WASI_FILE_PERMS_WRITE : 0);
     return wasi_config_preopen_dir(wasi, host.c_str(), guest, d, f);
 }
+// Compiling the CPython/calibre module costs several seconds on-device. Cache the
+// engine + compiled module for the lifetime of the process so only the first
+// conversion pays it; later conversions reuse it (with a fresh store/instance each
+// time for clean interpreter state). Conversions are serialized, so this is safe.
+static wasm_engine_t *g_engine = nullptr;
+static wasmtime_module_t *g_module = nullptr;
+static bool g_used_precompiled = false;
+
 static RunResult run_wasmtime(const std::string &wasm_path, const std::string &cwasm_path, const std::string &runtime_root, const std::string &work_dir, bool prefer_precompiled, JavaVM *vm = nullptr, jobject thiz = nullptr, jmethodID on_line = nullptr) {
     RunResult r;
     auto t0 = std::chrono::steady_clock::now();
-    wasm_config_t *config = wasm_config_new();
-    wasmtime_config_wasm_exceptions_set(config, true);
-    wasmtime_config_cranelift_opt_level_set(config, WASMTIME_OPT_LEVEL_SPEED);
-    wasm_engine_t *engine = wasm_engine_new_with_config(config);
-    if (!engine) { r.code = 1; r.error = "wasm_engine_new_with_config failed"; return r; }
-
-    wasmtime_module_t *module = nullptr;
-    if (prefer_precompiled && !cwasm_path.empty()) {
-        wasmtime_error_t *err = wasmtime_module_deserialize_file(engine, cwasm_path.c_str(), &module);
-        if (!err && module) r.used_precompiled = true;
-        else { if (err) wasmtime_error_delete(err); module = nullptr; }
+    if (!g_module) {
+        wasm_config_t *config = wasm_config_new();
+        wasmtime_config_wasm_exceptions_set(config, true);
+        wasmtime_config_cranelift_opt_level_set(config, WASMTIME_OPT_LEVEL_SPEED);
+        g_engine = wasm_engine_new_with_config(config);
+        if (!g_engine) { r.code = 1; r.error = "wasm_engine_new_with_config failed"; return r; }
+        if (prefer_precompiled && !cwasm_path.empty()) {
+            wasmtime_error_t *err = wasmtime_module_deserialize_file(g_engine, cwasm_path.c_str(), &g_module);
+            if (!err && g_module) g_used_precompiled = true;
+            else { if (err) wasmtime_error_delete(err); g_module = nullptr; }
+        }
+        if (!g_module) {
+            std::vector<uint8_t> wasm;
+            if (!read_file(wasm_path, wasm)) { r.code = 1; r.error = "failed to read wasm: " + wasm_path; wasm_engine_delete(g_engine); g_engine = nullptr; return r; }
+            wasmtime_error_t *err = wasmtime_module_new(g_engine, wasm.data(), wasm.size(), &g_module);
+            if (err) { append_error(r, "compile wasm", err); wasm_engine_delete(g_engine); g_engine = nullptr; return r; }
+        }
     }
-    if (!module) {
-        std::vector<uint8_t> wasm;
-        if (!read_file(wasm_path, wasm)) { r.code = 1; r.error = "failed to read wasm: " + wasm_path; wasm_engine_delete(engine); return r; }
-        wasmtime_error_t *err = wasmtime_module_new(engine, wasm.data(), wasm.size(), &module);
-        if (err) { append_error(r, "compile wasm", err); wasm_engine_delete(engine); return r; }
-    }
+    wasm_engine_t *engine = g_engine;
+    wasmtime_module_t *module = g_module;
+    r.used_precompiled = g_used_precompiled;
     auto t1 = std::chrono::steady_clock::now();
     r.compile_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 
@@ -149,10 +160,10 @@ static RunResult run_wasmtime(const std::string &wasm_path, const std::string &c
     preopen(wasi, runtime_root + "/wasi/third_party_site", "/third_party_site", false);
     preopen(wasi, work_dir, "/work", true);
     wasmtime_error_t *err = wasmtime_context_set_wasi(ctx, wasi);
-    if (err) { append_error(r, "set wasi", err); wasmtime_store_delete(store); wasmtime_module_delete(module); wasm_engine_delete(engine); return r; }
+    if (err) { append_error(r, "set wasi", err); wasmtime_store_delete(store); return r; }
     wasmtime_linker_t *linker = wasmtime_linker_new(engine);
     err = wasmtime_linker_define_wasi(linker);
-    if (err) { append_error(r, "define wasi", err); wasmtime_linker_delete(linker); wasmtime_store_delete(store); wasmtime_module_delete(module); wasm_engine_delete(engine); return r; }
+    if (err) { append_error(r, "define wasi", err); wasmtime_linker_delete(linker); wasmtime_store_delete(store); return r; }
     wasmtime_instance_t instance; wasm_trap_t *trap = nullptr;
     err = wasmtime_linker_instantiate(linker, ctx, module, &instance, &trap);
     if (err) { append_error(r, "instantiate", err); }
@@ -173,7 +184,8 @@ static RunResult run_wasmtime(const std::string &wasm_path, const std::string &c
     }
     auto t2 = std::chrono::steady_clock::now();
     r.run_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
-    wasmtime_linker_delete(linker); wasmtime_store_delete(store); wasmtime_module_delete(module); wasm_engine_delete(engine);
+    // Keep g_engine / g_module alive for the next conversion; only free per-run objects.
+    wasmtime_linker_delete(linker); wasmtime_store_delete(store);
     return r;
 }
 static jstring result_json(JNIEnv *env, const RunResult &r) {
