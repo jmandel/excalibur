@@ -16,6 +16,7 @@ import dev.exe.kindleconverter.MainActivity
 import dev.exe.kindleconverter.R
 import dev.exe.kindleconverter.net.discoverAddresses
 import dev.exe.kindleconverter.server.KindleHttpServer
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -34,6 +35,9 @@ class ConverterService : LifecycleService() {
         graph = AppGraph.get(this)
         startForeground(NOTIF_ID, buildNotification("Starting…"))
         lifecycleScope.launch { bindServer() }
+        // Pre-warm the converter (unpack runtime + compile/deserialize the module) off
+        // the critical path, so the first conversion doesn't wait on the ~4s compile.
+        lifecycleScope.launch(Dispatchers.IO) { runCatching { graph.runtime.prewarm() } }
     }
 
     /** (Re)bind the HTTP server to the current settings port. */
