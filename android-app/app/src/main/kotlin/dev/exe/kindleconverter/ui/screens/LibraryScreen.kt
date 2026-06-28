@@ -1,5 +1,11 @@
 package dev.exe.kindleconverter.ui.screens
 
+import android.content.ClipData
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import java.io.File
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -42,6 +48,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -51,6 +60,7 @@ import dev.exe.kindleconverter.data.BookStatus
 import dev.exe.kindleconverter.service.ServerBus
 import dev.exe.kindleconverter.ui.components.LocalIcons
 import dev.exe.kindleconverter.ui.components.PortDialog
+import dev.exe.kindleconverter.ui.components.QrDialog
 import dev.exe.kindleconverter.ui.components.StageRail
 import dev.exe.kindleconverter.ui.components.rememberAddresses
 
@@ -77,6 +87,47 @@ fun LibraryScreen(
             onConfirm = { showPortDialog = false; onSetPort(it) },
         )
     }
+
+    // Per-book export. Share goes through a FileProvider content URI; "Save to…" uses the
+    // system create-document picker, so the user chooses the destination — no permissions.
+    val context = LocalContext.current
+    var pendingSave by remember { mutableStateOf<Book?>(null) }
+    val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+        val path = pendingSave?.azw3Path; pendingSave = null
+        if (uri != null && path != null) runCatching {
+            context.contentResolver.openOutputStream(uri)?.use { out -> File(path).inputStream().use { it.copyTo(out) } }
+        }
+    }
+    val shareBook: (Book) -> Unit = { book ->
+        if (book.isReady) runCatching {
+            // Zero-copy: BookFileProvider streams the original file and reports a nice name.
+            val name = safeFileName(book.title) + ".azw3"
+            val uri = Uri.parse("content://${context.packageName}.books/${book.id}/${Uri.encode(name)}")
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = "application/x-mobipocket-ebook"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                clipData = ClipData.newRawUri(name, uri) // carries the grant to the share-sheet preview too
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(send, "Share \"${book.title}\""))
+        }
+    }
+    val saveBook: (Book) -> Unit = { book ->
+        pendingSave = book
+        saveLauncher.launch(safeFileName(book.title) + ".azw3")
+    }
+
+    // To another device over Wi-Fi: a QR / copyable link pointing at this server's
+    // /download/<id> route. Only meaningful while the server is running.
+    val addresses = rememberAddresses()
+    val clipboard = LocalClipboardManager.current
+    var qrUrl by remember { mutableStateOf<String?>(null) }
+    fun downloadUrl(book: Book): String? {
+        val ip = addresses.firstOrNull()?.ip ?: return null
+        return if (server.running) "http://$ip:${server.port}/download/${book.id}" else null
+    }
+    qrUrl?.let { QrDialog(it) { qrUrl = null } }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -106,7 +157,17 @@ fun LibraryScreen(
             } else {
                 LazyColumn(Modifier.fillMaxSize()) {
                     items(books, key = { it.id }) { book ->
-                        BookRow(book, onClick = { onOpenBook(book.id) }, onReconvert = { onReconvert(book) }, onDelete = { onDelete(book.id) })
+                        BookRow(
+                            book,
+                            serverRunning = server.running,
+                            onClick = { onOpenBook(book.id) },
+                            onReconvert = { onReconvert(book) },
+                            onDelete = { onDelete(book.id) },
+                            onShare = { shareBook(book) },
+                            onSave = { saveBook(book) },
+                            onShowQr = { downloadUrl(book)?.let { qrUrl = it } },
+                            onCopyLink = { downloadUrl(book)?.let { clipboard.setText(AnnotatedString(it)) } },
+                        )
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     }
                 }
@@ -173,7 +234,17 @@ private fun ServerBanner(
 }
 
 @Composable
-private fun BookRow(book: Book, onClick: () -> Unit, onReconvert: () -> Unit, onDelete: () -> Unit) {
+private fun BookRow(
+    book: Book,
+    serverRunning: Boolean,
+    onClick: () -> Unit,
+    onReconvert: () -> Unit,
+    onDelete: () -> Unit,
+    onShare: () -> Unit,
+    onSave: () -> Unit,
+    onShowQr: () -> Unit,
+    onCopyLink: () -> Unit,
+) {
     val cs = MaterialTheme.colorScheme
     var menu by remember { mutableStateOf(false) }
     Row(
@@ -204,6 +275,24 @@ private fun BookRow(book: Book, onClick: () -> Unit, onReconvert: () -> Unit, on
         Box {
             IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, "More") }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                if (book.isReady) {
+                    // Share works to anyone across apps (no network needed) — the general
+                    // option, so it's first. QR/link only reach devices on the same Wi-Fi.
+                    DropdownMenuItem(text = { Text("Share…") }, onClick = { menu = false; onShare() })
+                    DropdownMenuItem(text = { Text("Save a copy…") }, onClick = { menu = false; onSave() })
+                    if (serverRunning) {
+                        HorizontalDivider()
+                        Text(
+                            "Same Wi-Fi only",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = cs.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        )
+                        DropdownMenuItem(text = { Text("QR code") }, onClick = { menu = false; onShowQr() })
+                        DropdownMenuItem(text = { Text("Copy link") }, onClick = { menu = false; onCopyLink() })
+                    }
+                    HorizontalDivider()
+                }
                 DropdownMenuItem(text = { Text("Convert again") }, onClick = { menu = false; onReconvert() })
                 DropdownMenuItem(text = { Text("Delete") }, onClick = { menu = false; onDelete() })
             }
@@ -238,3 +327,6 @@ private fun EmptyLibrary(onAddBooks: () -> Unit) {
 }
 
 private fun mb(bytes: Long) = if (bytes <= 0) "—" else "%.1f MB".format(bytes / 1_048_576.0)
+
+private fun safeFileName(title: String) =
+    title.replace(Regex("[^a-zA-Z0-9 _-]"), "").trim().ifBlank { "book" }.take(60)

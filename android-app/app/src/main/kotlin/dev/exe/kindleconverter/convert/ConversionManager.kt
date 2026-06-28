@@ -80,6 +80,10 @@ class ConversionManager(
         }
         persist.cancel()
 
+        // Reclaim the per-conversion scratch dir (held the input + a duplicate of the
+        // output). The converted file is already copied to the library.
+        runCatching { storage.workDir(book.id).deleteRecursively() }
+
         if (result.ok && output.exists()) {
             repo.update(
                 book.copy(
