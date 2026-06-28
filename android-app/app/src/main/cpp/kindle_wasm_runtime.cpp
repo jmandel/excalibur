@@ -22,11 +22,46 @@
 #define ALOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 
 struct RunResult { int code = 0; std::string stdout_text; std::string stderr_text; std::string error; long compile_ms = 0; long run_ms = 0; bool used_precompiled = false; };
-struct Capture { std::string *target; };
+// Captures a wasm output stream into a string, and (if a callback is wired) forwards
+// each complete line to Kotlin's onNativeLine() as it is produced, so the UI can show
+// live conversion progress instead of waiting for the blocking _start call to return.
+//
+// Wasmtime may invoke this callback from an internal worker thread that is NOT attached
+// to the JVM, so we cannot reuse a cached JNIEnv (it is per-thread). We cache the
+// process-global JavaVM plus a global ref to the receiver, and attach the current thread
+// on demand for each emitted line.
+struct Capture { std::string *target; JavaVM *vm = nullptr; jobject thiz = nullptr; jmethodID on_line = nullptr; std::string partial; };
 
+static void emit_line(Capture *cap, const std::string &line) {
+    if (!cap->vm || !cap->on_line || !cap->thiz) return;
+    JNIEnv *env = nullptr;
+    bool attached = false;
+    jint r = cap->vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6);
+    if (r == JNI_EDETACHED) {
+        if (cap->vm->AttachCurrentThread(&env, nullptr) != JNI_OK) return;
+        attached = true;
+    } else if (r != JNI_OK || env == nullptr) {
+        return;
+    }
+    jstring s = env->NewStringUTF(line.c_str());
+    if (s) {
+        env->CallVoidMethod(cap->thiz, cap->on_line, s);
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        env->DeleteLocalRef(s);
+    }
+    if (attached) cap->vm->DetachCurrentThread();
+}
 static ptrdiff_t write_capture(void *data, const unsigned char *bytes, size_t len) {
     auto *cap = reinterpret_cast<Capture *>(data);
     cap->target->append(reinterpret_cast<const char *>(bytes), len);
+    if (cap->on_line) {
+        cap->partial.append(reinterpret_cast<const char *>(bytes), len);
+        size_t nl;
+        while ((nl = cap->partial.find('\n')) != std::string::npos) {
+            emit_line(cap, cap->partial.substr(0, nl));
+            cap->partial.erase(0, nl + 1);
+        }
+    }
     return static_cast<ptrdiff_t>(len);
 }
 static void delete_capture(void *data) { delete reinterpret_cast<Capture *>(data); }
@@ -70,7 +105,7 @@ static bool preopen(wasi_config_t *wasi, const std::string &host, const char *gu
     auto f = WASMTIME_WASI_FILE_PERMS_READ | (write ? WASMTIME_WASI_FILE_PERMS_WRITE : 0);
     return wasi_config_preopen_dir(wasi, host.c_str(), guest, d, f);
 }
-static RunResult run_wasmtime(const std::string &wasm_path, const std::string &cwasm_path, const std::string &runtime_root, const std::string &work_dir, bool prefer_precompiled) {
+static RunResult run_wasmtime(const std::string &wasm_path, const std::string &cwasm_path, const std::string &runtime_root, const std::string &work_dir, bool prefer_precompiled, JavaVM *vm = nullptr, jobject thiz = nullptr, jmethodID on_line = nullptr) {
     RunResult r;
     auto t0 = std::chrono::steady_clock::now();
     wasm_config_t *config = wasm_config_new();
@@ -99,11 +134,15 @@ static RunResult run_wasmtime(const std::string &wasm_path, const std::string &c
     wasi_config_t *wasi = wasi_config_new();
     const char *argv[] = {"python.wasm", "-S", "/work/probe.py"};
     wasi_config_set_argv(wasi, 3, argv);
-    const char *names[] = {"PYTHONPATH", "PYTHONDONTWRITEBYTECODE", "PYTHONHOME", "PYTHONTZPATH", "HOME", "XDG_CONFIG_HOME"};
-    const char *values[] = {"/build/lib.wasi-wasm32-3.12:/Lib:/third_party_site:/experiments:/third_party/calibre/src", "1", "/", "/usr/share/zoneinfo", "/work", "/work/.config"};
-    wasi_config_set_env(wasi, 6, names, values);
-    wasi_config_set_stdout_custom(wasi, write_capture, new Capture{&r.stdout_text}, delete_capture);
-    wasi_config_set_stderr_custom(wasi, write_capture, new Capture{&r.stderr_text}, delete_capture);
+    // calibre's plumber calls tempfile.mkdtemp(); WASI only exposes preopened dirs,
+    // and Python's tempfile probes $TMPDIR/$TMP/$TEMP before the hardcoded
+    // /tmp:/var/tmp:/usr/tmp:/ list (none of which are writable here). Point all
+    // three at the writable /work/tmp preopen (created host-side in runPython).
+    const char *names[] = {"PYTHONPATH", "PYTHONDONTWRITEBYTECODE", "PYTHONHOME", "PYTHONTZPATH", "HOME", "XDG_CONFIG_HOME", "TMPDIR", "TMP", "TEMP"};
+    const char *values[] = {"/build/lib.wasi-wasm32-3.12:/Lib:/third_party_site:/experiments:/third_party/calibre/src", "1", "/", "/usr/share/zoneinfo", "/work", "/work/.config", "/work/tmp", "/work/tmp", "/work/tmp"};
+    wasi_config_set_env(wasi, 9, names, values);
+    wasi_config_set_stdout_custom(wasi, write_capture, new Capture{&r.stdout_text, vm, thiz, on_line, {}}, delete_capture);
+    wasi_config_set_stderr_custom(wasi, write_capture, new Capture{&r.stderr_text, vm, thiz, on_line, {}}, delete_capture);
     preopen(wasi, runtime_root + "/wasi", "/", false);
     preopen(wasi, runtime_root + "/experiments", "/experiments", false);
     preopen(wasi, runtime_root + "/third_party", "/third_party", false);
@@ -143,8 +182,15 @@ static jstring result_json(JNIEnv *env, const RunResult &r) {
     ss << "{\"exitCode\":" << r.code << ",\"compileMs\":" << r.compile_ms << ",\"runMs\":" << r.run_ms << ",\"usedPrecompiled\":" << (r.used_precompiled ? "true" : "false") << ",\"stdout\":\"" << esc(r.stdout_text) << "\",\"stderr\":\"" << esc(r.stderr_text) << "\",\"error\":\"" << esc(r.error) << "\"}";
     return env->NewStringUTF(ss.str().c_str());
 }
-extern "C" JNIEXPORT jstring JNICALL Java_dev_exe_kindleconverter_wasmtime_WasmtimeRuntime_nativeRunPython(JNIEnv *env, jobject, jstring wasm, jstring cwasm, jstring root, jstring work, jboolean prefer) {
-    auto r = run_wasmtime(jstr(env, wasm), jstr(env, cwasm), jstr(env, root), jstr(env, work), prefer == JNI_TRUE);
+extern "C" JNIEXPORT jstring JNICALL Java_dev_exe_kindleconverter_wasmtime_WasmtimeRuntime_nativeRunPython(JNIEnv *env, jobject thiz, jstring wasm, jstring cwasm, jstring root, jstring work, jboolean prefer) {
+    JavaVM *vm = nullptr;
+    env->GetJavaVM(&vm);
+    jclass cls = env->GetObjectClass(thiz);
+    jmethodID on_line = env->GetMethodID(cls, "onNativeLine", "(Ljava/lang/String;)V");
+    if (env->ExceptionCheck()) env->ExceptionClear();
+    jobject gthiz = env->NewGlobalRef(thiz);  // valid across wasmtime worker threads
+    auto r = run_wasmtime(jstr(env, wasm), jstr(env, cwasm), jstr(env, root), jstr(env, work), prefer == JNI_TRUE, vm, gthiz, on_line);
+    env->DeleteGlobalRef(gthiz);
     ALOGI("run done code=%d compile=%ld run=%ld precompiled=%d", r.code, r.compile_ms, r.run_ms, r.used_precompiled ? 1 : 0);
     return result_json(env, r);
 }

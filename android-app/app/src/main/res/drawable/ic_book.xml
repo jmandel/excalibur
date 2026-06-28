@@ -1,0 +1,8 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24"
+    android:tint="?android:attr/colorControlNormal">
+    <!-- sword silhouette for the status bar -->
+    <path android:fillColor="@android:color/white"
+        android:pathData="M12,2 L13.4,12 L10.6,12 Z M7,13 L17,13 L17,15 L7,15 Z M11,15 L13,15 L12.6,20 L11.4,20 Z M12,19 L13.6,21 L12,23 L10.4,21 Z"/>
+</vector>

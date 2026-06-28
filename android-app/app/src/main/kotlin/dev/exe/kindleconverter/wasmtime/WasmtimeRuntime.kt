@@ -1,11 +1,20 @@
 package dev.exe.kindleconverter.wasmtime
 
 import android.content.Context
+import androidx.annotation.Keep
 import org.json.JSONObject
 import java.io.File
 import java.util.zip.ZipInputStream
 
 class WasmtimeRuntime(private val context: Context) {
+
+    @Volatile private var lineListener: ((String) -> Unit)? = null
+
+    /** Invoked from native (kindle_wasm_runtime.cpp) for each line of calibre output. */
+    @Keep
+    private fun onNativeLine(line: String) {
+        lineListener?.invoke(line)
+    }
     data class Result(
         val exitCode: Int,
         val compileMs: Long,
@@ -42,17 +51,22 @@ class WasmtimeRuntime(private val context: Context) {
         return root
     }
 
-    fun runPython(code: String, workDir: File, preferPrecompiled: Boolean = true): Result {
+    fun runPython(code: String, workDir: File, preferPrecompiled: Boolean = true, onLine: (String) -> Unit = {}): Result {
         val root = prepareRuntime()
-        workDir.mkdirs(); File(workDir, ".config").mkdirs()
+        workDir.mkdirs(); File(workDir, ".config").mkdirs(); File(workDir, "tmp").mkdirs()
         File(workDir, "probe.py").writeText(code)
-        val json = nativeRunPython(
-            File(root, "wasi/python.wasm").absolutePath,
-            File(root, "wasi/python-aarch64-android.cwasm").takeIf { it.exists() }?.absolutePath.orEmpty(),
-            root.absolutePath,
-            workDir.absolutePath,
-            preferPrecompiled,
-        )
+        lineListener = onLine
+        val json = try {
+            nativeRunPython(
+                File(root, "wasi/python.wasm").absolutePath,
+                File(root, "wasi/python-aarch64-android.cwasm").takeIf { it.exists() }?.absolutePath.orEmpty(),
+                root.absolutePath,
+                workDir.absolutePath,
+                preferPrecompiled,
+            )
+        } finally {
+            lineListener = null
+        }
         val o = JSONObject(json)
         return Result(
             exitCode = o.getInt("exitCode"),
@@ -65,7 +79,7 @@ class WasmtimeRuntime(private val context: Context) {
         )
     }
 
-    fun convert(input: File, output: File, workDir: File, profile: String = "kindle_oasis"): Result {
+    fun convert(input: File, output: File, workDir: File, profile: String = "kindle_oasis", onLine: (String) -> Unit = {}): Result {
         input.copyTo(File(workDir, input.name), overwrite = true)
         val script = """
             import os, json
@@ -75,7 +89,7 @@ class WasmtimeRuntime(private val context: Context) {
             info = browser_convert.convert_file('/work/${input.name}', '/work/${output.name}', {'output_profile':'$profile','base_font_size':0,'margin_left':5,'margin_right':5,'margin_top':5,'margin_bottom':5,'dont_compress':False,'no_inline_toc':False})
             print('native Wasmtime converted ' + json.dumps(info, sort_keys=True), flush=True)
         """.trimIndent()
-        val r = runPython(script, workDir)
+        val r = runPython(script, workDir, onLine = onLine)
         val generated = File(workDir, output.name)
         if (r.ok && generated.exists()) generated.copyTo(output, overwrite = true)
         return r
