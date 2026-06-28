@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ApplicationInfo
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.mtp.MtpConstants
@@ -51,14 +52,29 @@ sealed interface SyncOutcome {
     data class Done(val result: SyncResult) : SyncOutcome
 }
 
+private fun isDebuggable(context: Context): Boolean =
+    (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+
 /**
- * Detect a Kindle purely by vendor id (Lab126/Amazon = 0x1949), exactly like calibre.
- * We deliberately do NOT match on USB interface class: e-ink Kindles expose MTP through a
- * *vendor-specific* interface (0xFF), not the clean still-image/PTP class 6, so a class check
- * both misses real Kindles and risks matching unrelated PTP cameras.
+ * Detect the MTP target to sync to.
+ *
+ * Release: a Kindle, matched purely by vendor id (Lab126/Amazon = 0x1949), exactly like
+ * calibre. We deliberately do NOT match on USB interface class — e-ink Kindles expose MTP
+ * through a *vendor-specific* interface (0xFF), not the clean still-image/PTP class 6, so a
+ * class check both misses real Kindles and risks matching unrelated PTP cameras.
+ *
+ * Debug ([allowAnyForTesting] = true): if no Kindle is attached, fall back to any MTP/PTP
+ * device, so the real host code can be exercised against a software MTP responder without a
+ * Kindle — e.g. uMTP-Responder on a Pi Zero, or a second phone in file-transfer mode over
+ * OTG. See docs/usb-mtp-testing.md.
  */
-fun findKindle(usb: UsbManager): UsbDevice? =
-    usb.deviceList.values.firstOrNull { it.vendorId == AMAZON_VENDOR_ID }
+fun findMtpTarget(usb: UsbManager, allowAnyForTesting: Boolean): UsbDevice? {
+    usb.deviceList.values.firstOrNull { it.vendorId == AMAZON_VENDOR_ID }?.let { return it }
+    if (!allowAnyForTesting) return null
+    return usb.deviceList.values.firstOrNull { dev ->
+        (0 until dev.interfaceCount).any { dev.getInterface(it).interfaceClass == 6 /* still image / PTP-MTP */ }
+    } ?: usb.deviceList.values.firstOrNull()
+}
 
 /** One object in a Kindle folder, decoupled from android.mtp types so [reconcile] is plain-JVM testable. */
 data class RemoteEntry(val handle: Int, val name: String, val size: Long, val isFolder: Boolean)
@@ -171,8 +187,9 @@ suspend fun syncLibraryToKindle(
     onLog: (String) -> Unit,
 ): SyncOutcome = withContext(Dispatchers.IO) {
     val usb = context.getSystemService(Context.USB_SERVICE) as UsbManager
-    val device = findKindle(usb) ?: return@withContext SyncOutcome.NoDevice
-    onLog("Found ${device.productName ?: device.deviceName}")
+    val device = findMtpTarget(usb, allowAnyForTesting = isDebuggable(context)) ?: return@withContext SyncOutcome.NoDevice
+    val name = device.productName ?: device.deviceName
+    onLog(if (device.vendorId == AMAZON_VENDOR_ID) "Found $name" else "⚠ Test target (not a Kindle): $name")
     if (!ensurePermission(context, usb, device)) return@withContext SyncOutcome.NoPermission
     val connection = usb.openDevice(device) ?: return@withContext SyncOutcome.OpenFailed
     val mtp = MtpDevice(device)
