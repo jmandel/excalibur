@@ -20,7 +20,10 @@ echo "bun: $(bun --version) at $(command -v bun)"
 
 python3 scripts/static_wasi/build_wasi_libs.py
 python3 scripts/static_wasi/build_static_wasi_python.py
-python3 scripts/build_runtime_artifacts.py --android-precompile
+# Do NOT embed the ~62MB aarch64 .cwasm in the APK: the Android app pre-warms on
+# first launch and serializes its own .cwasm to disk, so shipping one is redundant
+# bloat. (Generating it on device also speeds up CI.)
+python3 scripts/build_runtime_artifacts.py
 python3 scripts/static_wasi/probe_static_wasi_conversion.py
 
 (
