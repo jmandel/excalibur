@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BookOpen, Download, Library, Loader2, WandSparkles, Plus, Search, Settings2, Sparkles, Tags, Trash2, Upload } from 'lucide-react';
+import { BookOpen, Download, ExternalLink, Library, Loader2, Smartphone, WandSparkles, Plus, Search, Settings2, Sparkles, Tags, Trash2, Upload } from 'lucide-react';
 import clsx from 'clsx';
 import { useAppStore } from './store';
 import { deviceProfiles } from './devices';
@@ -143,6 +143,20 @@ await kindleLibrary.addTags(id, ["fiction", "queued"])
 await kindleLibrary.convertBook(id, { output_profile: "kindle_oasis" })`}</pre></section>;
 }
 
-function App() { return <><Hero/><div className="appShell"><main><DeviceSetup/><UploadPanel/><LibraryView/><AssistantApiNote/></main><QueueSidebar/></div></>; }
+function AppFooter() {
+  return <footer className="appFooter">
+    <div>
+      <strong>Excalibur for Android</strong>
+      <span>Latest debug build from GitHub Actions.</span>
+    </div>
+    <a className="apkLink" href="downloads/excalibur-debug.apk" download>
+      <Smartphone/>
+      Download APK
+      <ExternalLink/>
+    </a>
+  </footer>;
+}
+
+function App() { return <><Hero/><div className="appShell"><main><DeviceSetup/><UploadPanel/><LibraryView/><AssistantApiNote/></main><QueueSidebar/></div><AppFooter/></>; }
 
 createRoot(document.getElementById('root')!).render(<App/>);

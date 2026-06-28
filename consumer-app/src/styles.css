@@ -86,3 +86,11 @@ details summary { cursor: pointer; color: #3f352a; font-weight: 700; }
 .logList span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .confirmDevice { align-self: end; justify-self: start; }
 @media (max-width: 1050px) { .appShell { grid-template-columns: 1fr; } .queuePanel { position: static; } }
+.appFooter { margin: 28px 0 4px; padding: 18px 0 0; border-top: 1px solid #d8cdbc; display: flex; justify-content: space-between; align-items: center; gap: 14px; color: #6f5f4a; font-family: ui-sans-serif, system-ui, sans-serif; }
+.appFooter div { display: grid; gap: 3px; min-width: 0; }
+.appFooter strong { color: #201a14; font-size: .95rem; }
+.appFooter span { font-size: .84rem; line-height: 1.35; }
+.apkLink { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: .45rem; border: 1px solid #2f3a33; border-radius: 8px; padding: .62rem .82rem; background: #2f3a33; color: #fffaf2; text-decoration: none; font-weight: 700; }
+.apkLink:hover { background: #46554b; border-color: #46554b; }
+.apkLink svg { width: 18px; height: 18px; }
+@media (max-width: 620px) { .appFooter { align-items: stretch; flex-direction: column; } .apkLink { width: 100%; } }
