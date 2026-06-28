@@ -3,11 +3,14 @@ package dev.exe.kindleconverter.ui.screens
 import android.content.ClipData
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import java.io.File
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,11 +25,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,6 +45,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -52,6 +63,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.exe.kindleconverter.convert.stageBaseFraction
@@ -75,6 +87,8 @@ fun LibraryScreen(
     onOpenSettings: () -> Unit,
     onReconvert: (Book) -> Unit,
     onDelete: (String) -> Unit,
+    onDeleteMany: (Set<String>) -> Unit,
+    onTagMany: (Set<String>, String) -> Unit,
     onStartServer: () -> Unit,
     onStopServer: () -> Unit,
     onSetPort: (Int) -> Unit,
@@ -85,6 +99,26 @@ fun LibraryScreen(
             current = if (server.running) server.port else configuredPort,
             onDismiss = { showPortDialog = false },
             onConfirm = { showPortDialog = false; onSetPort(it) },
+        )
+    }
+
+    // Multi-select. Long-press a row to start; tap to add/remove; back or ✕ to clear.
+    var selected by remember { mutableStateOf(emptySet<String>()) }
+    val selectionMode = selected.isNotEmpty()
+    // Drop ids that have since left the library (e.g. deleted) so the count stays honest.
+    val liveIds = books.map { it.id }.toSet()
+    if (selectionMode && !liveIds.containsAll(selected)) selected = selected intersect liveIds
+    fun toggle(id: String) { selected = if (id in selected) selected - id else selected + id }
+    fun clearSelection() { selected = emptySet() }
+    BackHandler(enabled = selectionMode) { clearSelection() }
+
+    var showTagDialog by remember { mutableStateOf(false) }
+    if (showTagDialog) {
+        TagDialog(
+            count = selected.size,
+            existing = books.flatMap { it.tagSet }.distinct().sorted(),
+            onDismiss = { showTagDialog = false },
+            onApply = { tag -> onTagMany(selected, tag); showTagDialog = false; clearSelection() },
         )
     }
 
@@ -130,19 +164,34 @@ fun LibraryScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Excalibur", style = MaterialTheme.typography.titleLarge) },
-                actions = {
-                    IconButton(onClick = onOpenSettings) { Icon(Icons.Rounded.Settings, "Settings") }
-                },
-            )
+            if (selectionMode) {
+                TopAppBar(
+                    navigationIcon = {
+                        IconButton(onClick = { clearSelection() }) { Icon(Icons.Rounded.Close, "Clear selection") }
+                    },
+                    title = { Text("${selected.size} selected", style = MaterialTheme.typography.titleLarge) },
+                    actions = {
+                        IconButton(onClick = { showTagDialog = true }) { Icon(LocalIcons.LocalOffer, "Tag") }
+                        IconButton(onClick = { onDeleteMany(selected); clearSelection() }) { Icon(Icons.Rounded.Delete, "Delete") }
+                    },
+                )
+            } else {
+                TopAppBar(
+                    title = { Text("Excalibur", style = MaterialTheme.typography.titleLarge) },
+                    actions = {
+                        IconButton(onClick = onOpenSettings) { Icon(Icons.Rounded.Settings, "Settings") }
+                    },
+                )
+            }
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onAddBooks,
-                icon = { Icon(Icons.Rounded.Add, null) },
-                text = { Text("Add books") },
-            )
+            if (!selectionMode) {
+                ExtendedFloatingActionButton(
+                    onClick = onAddBooks,
+                    icon = { Icon(Icons.Rounded.Add, null) },
+                    text = { Text("Add books") },
+                )
+            }
         },
     ) { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
@@ -160,7 +209,17 @@ fun LibraryScreen(
                         BookRow(
                             book,
                             serverRunning = server.running,
-                            onClick = { onOpenBook(book.id) },
+                            selectionMode = selectionMode,
+                            selected = book.id in selected,
+                            onClick = {
+                                when {
+                                    selectionMode -> toggle(book.id)
+                                    // The post-import detail screen still serves in-progress/errored
+                                    // books; ready books act through the ⋮ menu, not a tap target.
+                                    !book.isReady -> onOpenBook(book.id)
+                                }
+                            },
+                            onLongClick = { toggle(book.id) },
                             onReconvert = { onReconvert(book) },
                             onDelete = { onDelete(book.id) },
                             onShare = { shareBook(book) },
@@ -233,11 +292,15 @@ private fun ServerBanner(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun BookRow(
     book: Book,
     serverRunning: Boolean,
+    selectionMode: Boolean,
+    selected: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onReconvert: () -> Unit,
     onDelete: () -> Unit,
     onShare: () -> Unit,
@@ -248,13 +311,19 @@ private fun BookRow(
     val cs = MaterialTheme.colorScheme
     var menu by remember { mutableStateOf(false) }
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = 16.dp, end = 4.dp, top = 14.dp, bottom = 14.dp),
+        Modifier.fillMaxWidth()
+            .background(if (selected) cs.primaryContainer.copy(alpha = 0.5f) else cs.surface)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(start = 16.dp, end = 4.dp, top = 14.dp, bottom = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            LocalIcons.MenuBook, null,
-            tint = cs.onSurfaceVariant, modifier = Modifier.size(22.dp),
-        )
+        if (selected) {
+            Box(Modifier.size(22.dp).clip(CircleShape).background(cs.primary), contentAlignment = Alignment.Center) {
+                Icon(Icons.Rounded.Check, "Selected", tint = cs.onPrimary, modifier = Modifier.size(15.dp))
+            }
+        } else {
+            Icon(LocalIcons.MenuBook, null, tint = cs.onSurfaceVariant, modifier = Modifier.size(22.dp))
+        }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(book.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -271,33 +340,107 @@ private fun BookRow(
                 BookStatus.NEEDS_RECONVERT -> StatusLine("Needs reconvert", cs.secondary)
                 BookStatus.ERROR -> StatusLine("Couldn't convert — tap for details", cs.error)
             }
+            if (book.tagSet.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                TagRow(book.tagSet)
+            }
         }
-        Box {
-            IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, "More") }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                if (book.isReady) {
-                    // Share works to anyone across apps (no network needed) — the general
-                    // option, so it's first. QR/link only reach devices on the same Wi-Fi.
-                    DropdownMenuItem(text = { Text("Share…") }, onClick = { menu = false; onShare() })
-                    DropdownMenuItem(text = { Text("Save a copy…") }, onClick = { menu = false; onSave() })
-                    if (serverRunning) {
+        if (!selectionMode) {
+            Box {
+                IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, "More") }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    if (book.isReady) {
+                        // Share works to anyone across apps (no network needed) — the general
+                        // option, so it's first. QR/link only reach devices on the same Wi-Fi.
+                        DropdownMenuItem(text = { Text("Share…") }, onClick = { menu = false; onShare() })
+                        DropdownMenuItem(text = { Text("Save a copy…") }, onClick = { menu = false; onSave() })
+                        if (serverRunning) {
+                            HorizontalDivider()
+                            Text(
+                                "Same Wi-Fi only",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = cs.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            )
+                            DropdownMenuItem(text = { Text("QR code") }, onClick = { menu = false; onShowQr() })
+                            DropdownMenuItem(text = { Text("Copy link") }, onClick = { menu = false; onCopyLink() })
+                        }
                         HorizontalDivider()
-                        Text(
-                            "Same Wi-Fi only",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = cs.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        )
-                        DropdownMenuItem(text = { Text("QR code") }, onClick = { menu = false; onShowQr() })
-                        DropdownMenuItem(text = { Text("Copy link") }, onClick = { menu = false; onCopyLink() })
                     }
-                    HorizontalDivider()
+                    DropdownMenuItem(text = { Text("Convert again") }, onClick = { menu = false; onReconvert() })
+                    DropdownMenuItem(text = { Text("Delete") }, onClick = { menu = false; onDelete() })
                 }
-                DropdownMenuItem(text = { Text("Convert again") }, onClick = { menu = false; onReconvert() })
-                DropdownMenuItem(text = { Text("Delete") }, onClick = { menu = false; onDelete() })
             }
         }
     }
+}
+
+/** Up to three tag pills, then a "+N" overflow marker. */
+@Composable
+private fun TagRow(tags: List<String>) {
+    val cs = MaterialTheme.colorScheme
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        tags.take(3).forEach { tag ->
+            Text(
+                tag,
+                style = MaterialTheme.typography.labelSmall,
+                color = cs.onSecondaryContainer,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(cs.secondaryContainer)
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+            )
+        }
+        if (tags.size > 3) Text("+${tags.size - 3}", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TagDialog(
+    count: Int,
+    existing: List<String>,
+    onDismiss: () -> Unit,
+    onApply: (String) -> Unit,
+) {
+    var text by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (count == 1) "Tag 1 book" else "Tag $count books") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    singleLine = true,
+                    label = { Text("New tag") },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { if (text.isNotBlank()) onApply(text.trim()) }),
+                )
+                if (existing.isNotEmpty()) {
+                    Spacer(Modifier.height(14.dp))
+                    Text("Existing tags", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        existing.take(6).forEach { tag ->
+                            Text(
+                                tag,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                                    .clickable { onApply(tag) }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { if (text.isNotBlank()) onApply(text.trim()) }, enabled = text.isNotBlank()) { Text("Add") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable

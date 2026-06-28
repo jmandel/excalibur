@@ -108,6 +108,8 @@ private fun AppNav(vm: AppViewModel, onPickBooks: () -> Unit) {
                 onOpenSettings = { nav.navigate("settings") },
                 onReconvert = { vm.reconvert(it) },
                 onDelete = { vm.delete(it) },
+                onDeleteMany = { vm.deleteMany(it) },
+                onTagMany = { ids, tag -> vm.tagMany(ids, tag) },
                 onStartServer = { vm.startServer() },
                 onStopServer = { vm.exitServer() },
                 onSetPort = { vm.setPort(it) },

@@ -53,9 +53,12 @@ private class FakeKindleStore : KindleStore {
         return true
     }
 
-    /** The documents/Excalibur handle, created the same way reconcile() would. */
-    fun oursFolder(): Int = ensureFolder(ensureFolder(MTP_ROOT, KINDLE_DOCS_FOLDER), KINDLE_OURS_FOLDER)
+    /** A phone's documents/Excalibur/<device> handle, created the way reconcile() would. */
+    fun deviceFolder(device: String): Int =
+        ensureFolder(ensureFolder(ensureFolder(MTP_ROOT, KINDLE_DOCS_FOLDER), KINDLE_OURS_FOLDER), device)
 }
+
+private const val DEVICE = "phoneA"
 
 class ReconcileTest {
     private fun fileOf(bytes: Int): File =
@@ -63,7 +66,7 @@ class ReconcileTest {
 
     @Test fun pushesMissingBooks() {
         val store = FakeKindleStore()
-        val r = reconcile(store, mapOf("a" to fileOf(10), "b" to fileOf(20))) {}
+        val r = reconcile(store, DEVICE, mapOf("a" to fileOf(10), "b" to fileOf(20))) {}
         assertEquals(2, r.pushed)
         assertEquals(0, r.skipped)
         assertEquals(0, r.deleted)
@@ -72,8 +75,8 @@ class ReconcileTest {
 
     @Test fun skipsUnchangedSameSize() {
         val store = FakeKindleStore()
-        store.seed(store.oursFolder(), "a.azw3", 10, isFolder = false)
-        val r = reconcile(store, mapOf("a" to fileOf(10))) {}
+        store.seed(store.deviceFolder(DEVICE), "a.azw3", 10, isFolder = false)
+        val r = reconcile(store, DEVICE, mapOf("a" to fileOf(10))) {}
         assertEquals(0, r.pushed)
         assertEquals(1, r.skipped)
         assertTrue(store.pushedNames.isEmpty())
@@ -81,8 +84,8 @@ class ReconcileTest {
 
     @Test fun repushesWhenSizeChanged() {
         val store = FakeKindleStore()
-        store.seed(store.oursFolder(), "a.azw3", 10, isFolder = false)
-        val r = reconcile(store, mapOf("a" to fileOf(99))) {}
+        store.seed(store.deviceFolder(DEVICE), "a.azw3", 10, isFolder = false)
+        val r = reconcile(store, DEVICE, mapOf("a" to fileOf(99))) {}
         assertEquals(1, r.pushed)
         assertEquals(0, r.skipped)
         assertEquals(listOf("a.azw3"), store.pushedNames)
@@ -90,10 +93,10 @@ class ReconcileTest {
 
     @Test fun deletesUnwantedBookAndItsSidecar() {
         val store = FakeKindleStore()
-        val ours = store.oursFolder()
+        val ours = store.deviceFolder(DEVICE)
         val book = store.seed(ours, "gone.azw3", 10, isFolder = false)
         val sidecar = store.seed(ours, "gone.sdr", 0, isFolder = true)
-        val r = reconcile(store, emptyMap()) {}
+        val r = reconcile(store, DEVICE, emptyMap()) {}
         assertEquals(1, r.deleted)
         assertEquals(0, r.pushed)
         assertTrue("book handle deleted", book in store.deletedHandles)
@@ -103,22 +106,33 @@ class ReconcileTest {
 
     @Test fun keepsSidecarOfAWantedBook() {
         val store = FakeKindleStore()
-        val ours = store.oursFolder()
+        val ours = store.deviceFolder(DEVICE)
         store.seed(ours, "keep.azw3", 10, isFolder = false)
         val sidecar = store.seed(ours, "keep.sdr", 0, isFolder = true)
-        reconcile(store, mapOf("keep" to fileOf(10))) {}
+        reconcile(store, DEVICE, mapOf("keep" to fileOf(10))) {}
         assertFalse("a kept book's reading-state sidecar must survive", sidecar in store.deletedHandles)
     }
 
     @Test fun mixedAddSkipDeleteInOnePass() {
         val store = FakeKindleStore()
-        val ours = store.oursFolder()
+        val ours = store.deviceFolder(DEVICE)
         store.seed(ours, "keep.azw3", 10, isFolder = false)   // unchanged -> skip
         store.seed(ours, "stale.azw3", 5, isFolder = false)   // not wanted -> delete
-        val r = reconcile(store, mapOf("keep" to fileOf(10), "new" to fileOf(7))) {}
+        val r = reconcile(store, DEVICE, mapOf("keep" to fileOf(10), "new" to fileOf(7))) {}
         assertEquals(1, r.pushed)   // new.azw3
         assertEquals(1, r.skipped)  // keep.azw3
         assertEquals(1, r.deleted)  // stale.azw3
         assertEquals(listOf("new.azw3"), store.pushedNames)
+    }
+
+    /** Two phones, one Kindle: syncing phoneA must never touch phoneB's folder. */
+    @Test fun leavesAnotherPhonesFolderAlone() {
+        val store = FakeKindleStore()
+        val others = store.seed(store.deviceFolder("phoneB"), "theirs.azw3", 10, isFolder = false)
+        // phoneA syncs with an empty library — it would delete its own books, but not phoneB's.
+        val r = reconcile(store, DEVICE, emptyMap()) {}
+        assertEquals(0, r.deleted)
+        assertFalse("phoneB's book must survive phoneA's sync", others in store.deletedHandles)
+        assertEquals(1, store.list(store.deviceFolder("phoneB")).size)
     }
 }

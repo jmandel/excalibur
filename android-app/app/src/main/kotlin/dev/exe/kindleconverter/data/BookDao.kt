@@ -8,6 +8,8 @@ import androidx.room.Query
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.Update
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -39,8 +41,15 @@ interface BookDao {
     @Query("DELETE FROM books WHERE id = :id") suspend fun delete(id: String)
 }
 
-@Database(entities = [Book::class], version = 1, exportSchema = false)
+@Database(entities = [Book::class], version = 2, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun bookDao(): BookDao
+}
+
+/** v2 adds the per-book `tags` column. */
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE books ADD COLUMN tags TEXT NOT NULL DEFAULT ''")
+    }
 }

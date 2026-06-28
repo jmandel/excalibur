@@ -26,8 +26,11 @@ data class Book(
     val stageLabel: String = "",
     val createdAt: Long = 0,
     val convertedAt: Long = 0,
+    /** Comma-separated user tags (for organizing the library / future Kindle collections). */
+    val tags: String = "",
 ) {
     val isReady get() = status == BookStatus.READY && azw3Path != null
+    val tagSet get() = tags.split(',').map { it.trim() }.filter { it.isNotEmpty() }.distinct()
 }
 
 class Converters {

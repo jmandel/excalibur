@@ -52,6 +52,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun delete(id: String) = viewModelScope.launch { graph.repo.delete(id) }
+    fun deleteMany(ids: Set<String>) = viewModelScope.launch { graph.repo.deleteMany(ids) }
+    fun tagMany(ids: Set<String>, tag: String) = viewModelScope.launch { graph.repo.addTag(ids, tag) }
 
     fun setProfile(id: String) = viewModelScope.launch { graph.settings.setProfile(id) }
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch { graph.settings.setThemeMode(mode) }
@@ -76,8 +78,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (_syncing.value) return@launch
         _syncing.value = true
         _syncStatus.value = "Looking for a connected Kindle…"
+        val device = settings.value.deviceTag.ifBlank {
+            makeDeviceTag().also { graph.settings.setDeviceTag(it) }
+        }
         val wantById = graph.repo.ready().mapNotNull { b -> b.azw3Path?.let { b.id to File(it) } }.toMap()
-        val outcome = syncLibraryToKindle(getApplication(), wantById) { line -> _syncStatus.value = line }
+        val outcome = syncLibraryToKindle(getApplication(), device, wantById) { line -> _syncStatus.value = line }
         _syncStatus.value = when (outcome) {
             SyncOutcome.NoDevice -> "No Kindle found. Connect it with a USB-OTG cable, unlock it, and allow file transfer."
             SyncOutcome.NoPermission -> "USB permission was denied."
@@ -87,5 +92,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             is SyncOutcome.Done -> outcome.result.let { "Done — ${it.pushed} added, ${it.deleted} removed, ${it.skipped} already there." }
         }
         _syncing.value = false
+    }
+
+    /** A stable, human-readable per-install id (e.g. "Pixel-7-a3f0") for this phone's Kindle folder. */
+    private fun makeDeviceTag(): String {
+        val model = android.os.Build.MODEL.replace(Regex("[^A-Za-z0-9]+"), "-").trim('-').take(20).ifBlank { "phone" }
+        return "$model-${java.util.UUID.randomUUID().toString().take(4)}"
     }
 }

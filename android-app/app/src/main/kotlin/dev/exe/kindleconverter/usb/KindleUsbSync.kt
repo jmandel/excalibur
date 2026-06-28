@@ -123,18 +123,22 @@ private class KindleMtp(val device: MtpDevice, val storageId: Int) : KindleStore
 }
 
 /**
- * Reconcile the Kindle's documents/Excalibur folder against [wantById]:
+ * Reconcile this phone's folder on the Kindle (documents/Excalibur/<device>) against [wantById]:
  *  - push books whose <id>.azw3 is missing or a different size
  *  - delete any book in the folder whose id is no longer wanted, plus its <id>.sdr sidecar
+ *
+ * Each phone owns its own [device] subfolder, so two phones syncing to the same Kindle never
+ * delete each other's books — a phone only ever touches the folder it created.
  *
  * The Kindle drops a sibling "<book>.sdr" folder next to each book (reading position,
  * bookmarks, page index). We preserve it across re-pushes, but remove it when the book
  * itself goes, so orphaned sidecars don't pile up.
  */
-internal fun reconcile(store: KindleStore, wantById: Map<String, File>, onLog: (String) -> Unit): SyncResult {
+internal fun reconcile(store: KindleStore, device: String, wantById: Map<String, File>, onLog: (String) -> Unit): SyncResult {
     val docs = store.ensureFolder(MTP_ROOT, KINDLE_DOCS_FOLDER)
     val ours = store.ensureFolder(docs, KINDLE_OURS_FOLDER)
-    val children = store.list(ours)
+    val mine = store.ensureFolder(ours, device)
+    val children = store.list(mine)
     val books = children.filter { !it.isFolder }.associateBy { it.name }
     // <id>.sdr sidecar folders, keyed by the book id they belong to.
     val sidecars = children.filter { it.isFolder && it.name.endsWith(".sdr") }
@@ -146,7 +150,7 @@ internal fun reconcile(store: KindleStore, wantById: Map<String, File>, onLog: (
         val ex = books[name]
         if (ex != null && ex.size == file.length()) { skipped++; continue }
         onLog("→ pushing ${file.name}")
-        if (store.push(ours, name, file)) pushed++ else onLog("  ! push failed for $name")
+        if (store.push(mine, name, file)) pushed++ else onLog("  ! push failed for $name")
     }
     for ((name, entry) in books) {
         val id = name.removeSuffix(".azw3")
@@ -183,6 +187,7 @@ private suspend fun ensurePermission(context: Context, usb: UsbManager, device: 
 /** Full flow: detect → permission → open MTP → reconcile → close. */
 suspend fun syncLibraryToKindle(
     context: Context,
+    deviceFolder: String,
     wantById: Map<String, File>,
     onLog: (String) -> Unit,
 ): SyncOutcome = withContext(Dispatchers.IO) {
@@ -197,7 +202,7 @@ suspend fun syncLibraryToKindle(
     try {
         val storageId = mtp.storageIds?.firstOrNull() ?: return@withContext SyncOutcome.NoStorage
         onLog("Syncing ${wantById.size} books…")
-        SyncOutcome.Done(reconcile(KindleMtp(mtp, storageId), wantById, onLog))
+        SyncOutcome.Done(reconcile(KindleMtp(mtp, storageId), deviceFolder, wantById, onLog))
     } catch (e: Exception) {
         Log.e(TAG, "sync failed", e)
         SyncOutcome.Failed(e.message ?: e.javaClass.simpleName)

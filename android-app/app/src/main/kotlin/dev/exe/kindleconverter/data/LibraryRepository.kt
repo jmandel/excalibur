@@ -74,6 +74,25 @@ class LibraryRepository(
         storage.purge(id)
     }
 
+    suspend fun deleteMany(ids: Collection<String>) = ids.forEach { delete(it) }
+
+    /** Add [tag] to each of [ids] (idempotent; blank tags ignored). */
+    suspend fun addTag(ids: Collection<String>, tag: String) {
+        val t = tag.trim().takeIf { it.isNotEmpty() } ?: return
+        ids.forEach { id ->
+            dao.get(id)?.let { b ->
+                if (t !in b.tagSet) dao.update(b.copy(tags = (b.tagSet + t).joinToString(",")))
+            }
+        }
+    }
+
+    /** Remove [tag] from a single book. */
+    suspend fun removeTag(id: String, tag: String) {
+        dao.get(id)?.let { b ->
+            if (tag in b.tagSet) dao.update(b.copy(tags = (b.tagSet - tag).joinToString(",")))
+        }
+    }
+
     suspend fun update(book: Book) = dao.update(book)
     fun storage() = storage
 

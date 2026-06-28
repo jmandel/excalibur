@@ -16,6 +16,9 @@ data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = true,
     val serverPort: Int = 8888,
+    /** Stable per-install id; namespaces this phone's books on a shared Kindle so two
+     *  phones syncing to the same Kindle don't delete each other's content. */
+    val deviceTag: String = "",
 )
 
 private val Context.dataStore by preferencesDataStore("settings")
@@ -26,6 +29,7 @@ class SettingsStore(private val context: Context) {
         val theme = stringPreferencesKey("theme_mode")
         val dynamic = booleanPreferencesKey("dynamic_color")
         val port = intPreferencesKey("server_port")
+        val deviceTag = stringPreferencesKey("device_tag")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -34,6 +38,7 @@ class SettingsStore(private val context: Context) {
             themeMode = p[Keys.theme]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM,
             dynamicColor = p[Keys.dynamic] ?: true,
             serverPort = p[Keys.port] ?: 8888,
+            deviceTag = p[Keys.deviceTag] ?: "",
         )
     }
 
@@ -41,4 +46,5 @@ class SettingsStore(private val context: Context) {
     suspend fun setThemeMode(mode: ThemeMode) = context.dataStore.edit { it[Keys.theme] = mode.name }
     suspend fun setDynamicColor(on: Boolean) = context.dataStore.edit { it[Keys.dynamic] = on }
     suspend fun setPort(port: Int) = context.dataStore.edit { it[Keys.port] = port }
+    suspend fun setDeviceTag(tag: String) = context.dataStore.edit { it[Keys.deviceTag] = tag }
 }
