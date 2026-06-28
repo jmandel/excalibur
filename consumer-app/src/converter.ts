@@ -9,14 +9,19 @@ let statusCallback: ((message: string) => void) | undefined;
 export function onConverterStatus(cb: (message: string) => void) {
   statusCallback = cb;
 }
+
+// calibre streams its progress as log lines; the UI maps them to stages.
+let runtimeLineCallback: ((line: string) => void) | undefined;
+export function onRuntimeLine(cb: ((line: string) => void) | undefined) {
+  runtimeLineCallback = cb;
+}
+
 function emit(message: string) {
   statusCallback?.(message);
   console.log('[converter]', message);
 }
 function logRuntimeOutput(message: string) {
-  // calibre is very chatty and may print warnings to stderr during successful
-  // conversions. Keep that output out of the visible queue and console by
-  // default; enable explicitly when diagnosing runtime issues.
+  runtimeLineCallback?.(message);
   if (localStorage.getItem('kindleConverterDebug') === '1') console.debug('[converter-runtime]', message);
 }
 

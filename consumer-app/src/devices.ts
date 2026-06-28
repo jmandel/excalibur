@@ -1,20 +1,16 @@
-import type { DeviceProfile } from './types';
+export type Device = { id: string; label: string };
 
-export const deviceProfiles: DeviceProfile[] = [
-  {
-    id: 'kindle_oasis',
-    label: 'Paperwhite 2024 / 12th gen',
-    description: 'Closest calibre built-in profile for the 7-inch 300ppi 2024 Paperwhite. Uses the 1264×1680 / 300ppi Kindle Oasis profile.',
-    screen: '7-inch, 300ppi class',
-    recommended: true,
-  },
-  { id: 'kindle_pw3', label: 'Paperwhite 3 / Voyage-era', description: 'Older 300ppi Paperwhite/Voyage-class profile.', screen: '1072×1430, 300ppi' },
-  { id: 'kindle_pw', label: 'Older Paperwhite', description: 'Older 212ppi Paperwhite profile.', screen: '658×940, 212ppi' },
-  { id: 'kindle_scribe', label: 'Kindle Scribe', description: 'Large-format Kindle Scribe.', screen: '1860×2480, 300ppi' },
-  { id: 'kindle_voyage', label: 'Kindle Voyage', description: 'Kindle Voyage 300ppi profile.', screen: '1080×1430, 300ppi' },
-  { id: 'kindle_oasis', label: 'Kindle Oasis', description: '7-inch Kindle Oasis profile.', screen: '1264×1680, 300ppi' },
-  { id: 'kindle', label: 'Classic Kindle', description: 'Older/basic Kindle profile.', screen: '525×640' },
-  { id: 'default', label: 'Generic/default', description: 'calibre generic output defaults.', screen: 'Generic' },
+// "Paperwhite" alone is ambiguous — it spans many generations and two screen
+// sizes — so each option names the recognizable model(s) plus year and screen.
+// Kept terse so the picker doesn't overflow; several map to one calibre profile.
+export const devices: Device[] = [
+  { id: 'kindle_oasis', label: 'Paperwhite 2024 / 12th gen · 7″' },
+  { id: 'kindle_pw3', label: 'Paperwhite 2015–2021 · 6″' },
+  { id: 'kindle_scribe', label: 'Scribe · 10.2″' },
+  { id: 'kindle_voyage', label: 'Voyage 2014 · 6″' },
+  { id: 'kindle_pw', label: 'Paperwhite 2012–2013 · 6″' },
+  { id: 'kindle', label: 'Basic Kindle · 6″' },
 ];
 
-export const defaultDeviceProfile = 'kindle_oasis';
+export const defaultDevice = 'kindle_oasis';
+export const deviceLabel = (id: string) => devices.find((d) => d.id === id)?.label ?? id;

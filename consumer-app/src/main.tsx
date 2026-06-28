@@ -1,162 +1,165 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BookOpen, Download, ExternalLink, Library, Loader2, Smartphone, WandSparkles, Plus, Search, Settings2, Sparkles, Tags, Trash2, Upload } from 'lucide-react';
+import { Check, Download, ExternalLink, RotateCcw, Smartphone, Sword, Upload } from 'lucide-react';
 import clsx from 'clsx';
-import { useAppStore } from './store';
-import { deviceProfiles } from './devices';
-import type { LibraryBook } from './types';
+import { useStore } from './store';
+import { devices } from './devices';
+import { STAGES, stageIndex, type Stage } from './stages';
 import './styles.css';
 
-function fmtBytes(n: number) { return n < 1024 ? `${n} B` : n < 1024 * 1024 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`; }
-function download(blob: Blob, name: string) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1500); }
-
-function Hero() {
-  const { converterStatus, loading, loadSamples, enqueueAllPending, deviceConfirmed } = useAppStore();
-  const helperStatus = !deviceConfirmed ? 'Waiting for your Kindle' : (converterStatus === 'Not loaded' ? 'Ready when needed' : converterStatus);
-  return <section className="hero">
-    <div>
-      <div className="eyebrow"><Sparkles size={16}/> private browser conversion</div>
-      <h1>Your books, ready for your Kindle.</h1>
-      <p>First choose your Kindle. Then add books to your library, organize them, and queue Kindle-ready AZW3 copies whenever you’re ready.</p>
-      <div className="heroActions">
-        <button className="primary" onClick={loadSamples}><BookOpen/> Try with Lewis Carroll</button>
-        <button onClick={enqueueAllPending} disabled={loading || !deviceConfirmed}>{loading ? <Loader2 className="spin"/> : <Sparkles/>} Convert waiting books</button>
+function StageRail({ stage, fraction }: { stage: Stage; fraction: number }) {
+  const idx = stageIndex(stage);
+  return (
+    <div className="rail">
+      <div className="railTrack">
+        <div className="railFill" style={{ width: `${Math.round(fraction * 100)}%` }} />
+        <div className="railDots">
+          {STAGES.map((s, i) => <span key={s.id} className={clsx('dot', i <= idx && 'done')} />)}
+        </div>
+      </div>
+      <div className="railLabels">
+        {STAGES.map((s, i) => <span key={s.id} className={clsx(i <= idx && 'on')}>{s.label}</span>)}
       </div>
     </div>
-    <div className="statusCard">
-      <span>Conversion helper</span>
-      <strong>{helperStatus}</strong>
-      <p>Confirm a device to unlock the queue. Every conversion is tracked here.</p>
-    </div>
-  </section>;
+  );
 }
 
-function DeviceSetup() {
-  const { selectedDevice, setDevice, options, setOptions, confirmDevice, deviceConfirmed } = useAppStore();
-  const selected = deviceProfiles.find(d => d.id === selectedDevice) ?? deviceProfiles[0];
-  return <section className="card setup">
-    <div className="sectionTitle"><Settings2/><div><h2>Identify your Kindle</h2><p>Conversion starts from your target device profile and can be tuned like calibre.</p></div></div>
-    <div className="setupGrid">
-      <label className="wide">Device
-        <select value={selectedDevice} onChange={e => setDevice(e.target.value)}>{deviceProfiles.map(d => <option key={`${d.id}-${d.label}`} value={d.id}>{d.label}</option>)}</select>
-        <span className="hint">{selected.description}</span>
-      </label>
-      <label>Base font size
-        <input type="number" value={options.base_font_size} min={0} step={0.5} onChange={e => setOptions({ base_font_size: Number(e.target.value) })}/>
-        <span className="hint">0 = Auto, using the selected profile’s calibre base font.</span>
-      </label>
-      <label>Margins
-        <div className="quad"><input title="left" value={options.margin_left} type="number" onChange={e => setOptions({ margin_left: Number(e.target.value) })}/><input title="right" value={options.margin_right} type="number" onChange={e => setOptions({ margin_right: Number(e.target.value) })}/><input title="top" value={options.margin_top} type="number" onChange={e => setOptions({ margin_top: Number(e.target.value) })}/><input title="bottom" value={options.margin_bottom} type="number" onChange={e => setOptions({ margin_bottom: Number(e.target.value) })}/></div>
-        <span className="hint">Left, right, top, bottom in points.</span>
-      </label>
-      <label className="check"><input type="checkbox" checked={options.dont_compress} onChange={e => setOptions({ dont_compress: e.target.checked })}/> Disable AZW3 compression</label>
-      <label className="check"><input type="checkbox" checked={options.no_inline_toc} onChange={e => setOptions({ no_inline_toc: e.target.checked })}/> No inline TOC</label>
-      <button className="primary confirmDevice" onClick={confirmDevice}>{deviceConfirmed ? 'Device confirmed' : 'Use this Kindle'}</button>
-    </div>
-  </section>;
+function DevicePicker() {
+  const device = useStore((s) => s.device);
+  const setDevice = useStore((s) => s.setDevice);
+  return (
+    <label className="devicePicker">
+      <span>Format for</span>
+      <select value={device} onChange={(e) => setDevice(e.target.value)}>
+        {devices.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+      </select>
+    </label>
+  );
 }
 
-function UploadPanel() {
-  const { addFiles } = useAppStore();
-  return <section className="card upload" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); addFiles(e.dataTransfer.files); }}>
-    <Upload size={34}/>
-    <h2>Drop books here</h2>
-    <p>EPUB, MOBI, AZW, AZW3, PRC, POBI</p>
-    <label className="fileButton"><Plus/> Choose files<input hidden type="file" multiple accept=".epub,.mobi,.azw,.azw3,.prc,.pobi" onChange={e => e.target.files && addFiles(e.target.files)}/></label>
-  </section>;
-}
+function Dropzone() {
+  const convertFile = useStore((s) => s.convertFile);
+  const convertSample = useStore((s) => s.convertSample);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [over, setOver] = useState(false);
 
-function BookCard({ book }: { book: LibraryBook }) {
-  const { enqueueBook, updateBook, deleteBook, deviceConfirmed, queue } = useAppStore();
-  const [editingTags, setEditingTags] = useState(book.tags.join(', '));
-  const queued = queue.some(j => j.bookId === book.id && (j.status === 'queued' || j.status === 'running'));
-  const busy = book.status === 'converting' || queued;
-  return <article className={clsx('bookCard', book.status)}>
-    <div className="bookTop">
-      <div className="cover"><BookOpen/></div>
-      <div className="bookMeta">
-        <input className="titleInput" value={book.title} onChange={e => updateBook(book.id, { title: e.target.value })}/>
-        <input className="authorInput" placeholder="Author" value={book.author ?? ''} onChange={e => updateBook(book.id, { author: e.target.value })}/>
-        <div className="small">{book.ext.toUpperCase()} · {fmtBytes(book.inputSize)} · {book.status}</div>
+  return (
+    <div className="stageCard">
+      <div
+        className={clsx('dropzone', over && 'over')}
+        role="button"
+        tabIndex={0}
+        onClick={() => inputRef.current?.click()}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click(); }}
+        onDragOver={(e) => { e.preventDefault(); setOver(true); }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files?.[0]; if (f) convertFile(f); }}
+      >
+        <Upload className="dropIcon" />
+        <div className="dropTitle">Drop a book here</div>
+        <div className="dropOr">or <span className="link">choose a file</span></div>
+        <div className="dropFormats">EPUB · MOBI · FB2</div>
+        <input
+          ref={inputRef}
+          hidden
+          type="file"
+          accept=".epub,.mobi,.fb2,.prc,.txt,.html,.htmlz"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) convertFile(f); e.target.value = ''; }}
+        />
+      </div>
+      <div className="dzFooter">
+        <DevicePicker />
+        <button className="sampleLink" onClick={() => convertSample(2)}>
+          In a hurry? Try <em>The Hunting of the Snark</em>.
+        </button>
       </div>
     </div>
-    <div className="tagRow"><Tags size={15}/><input value={editingTags} placeholder="tags, comma separated" onChange={e => setEditingTags(e.target.value)} onBlur={() => updateBook(book.id, { tags: editingTags.split(',').map(t => t.trim()).filter(Boolean) })}/></div>
-    {book.error && <div className="error">{book.error}</div>}
-    {book.sampleSource && <a className="source" href={book.sampleSource} target="_blank">Project Gutenberg source</a>}
-    <div className="actions">
-      <button onClick={() => enqueueBook(book.id)} disabled={busy || !deviceConfirmed}>{busy ? <Loader2 className="spin"/> : <WandSparkles/>}{queued ? 'Queued' : book.azw3Blob ? 'Queue reconvert' : 'Queue convert'}</button>
-      <button onClick={() => download(book.inputBlob, book.filename)}><Download/> Input</button>
-      <button disabled={!book.azw3Blob} onClick={() => book.azw3Blob && download(book.azw3Blob, book.azw3Name || `${book.title}.azw3`)}><Download/> AZW3</button>
-      <button className="ghostDanger" onClick={() => deleteBook(book.id)}><Trash2/> </button>
+  );
+}
+
+function ConvertingCard() {
+  const { book, stage, fraction, label, lastLine } = useStore();
+  if (!book) return null;
+  return (
+    <div className="stageCard bookCard">
+      <h2 className="bookTitle">{book.title}</h2>
+      <div className="bookMeta">{[book.author, book.ext.toUpperCase(), book.sizeText].filter(Boolean).join(' · ')}</div>
+      <StageRail stage={stage} fraction={fraction} />
+      <div className="convLabel">{label}</div>
+      {lastLine && lastLine !== label && <div className="convLine">{lastLine}</div>}
     </div>
-  </article>;
+  );
 }
 
-function LibraryView() {
-  const { books, refresh, clear } = useAppStore();
-  const [query, setQuery] = useState('');
-  useEffect(() => { refresh(); }, [refresh]);
-  const filtered = useMemo(() => books.filter(b => `${b.title} ${b.author ?? ''} ${b.tags.join(' ')}`.toLowerCase().includes(query.toLowerCase())), [books, query]);
-  return <section className="card libraryPanel">
-    <div className="libraryHead"><div className="sectionTitle"><Library/><div><h2>Library</h2><p>{books.length} books stored locally in IndexedDB.</p></div></div><div className="search"><Search size={17}/><input placeholder="Search title, author, tag" value={query} onChange={e => setQuery(e.target.value)}/></div><button className="ghostDanger" onClick={clear}><Trash2/> Clear</button></div>
-    <div className="booksGrid">{filtered.map(b => <BookCard key={b.id} book={b}/>)}{filtered.length === 0 && <div className="empty">No books yet. Load samples or upload your own.</div>}</div>
-  </section>;
-}
-
-function QueueSidebar() {
-  const { queue, logs, activeJobId, deviceConfirmed } = useAppStore();
-  const counts = {
-    queued: queue.filter(j => j.status === 'queued').length,
-    running: queue.filter(j => j.status === 'running').length,
-    done: queue.filter(j => j.status === 'done').length,
-    error: queue.filter(j => j.status === 'error').length,
-  };
-  const active = queue.find(j => j.id === activeJobId);
-  const summary = !deviceConfirmed
-    ? 'Confirm your Kindle to enable conversion.'
-    : active
-      ? 'Converting one book. You can keep editing your library.'
-      : counts.queued
-        ? 'Waiting to start the next book.'
-        : counts.error
-          ? 'Queue paused on an error. Review the log below.'
-          : counts.done
-            ? 'All queued conversions are complete.'
-            : 'Waiting for books.';
-  const visibleJobs = queue.slice(-8).reverse();
-  return <aside className="queuePanel">
-    <h2>Conversion queue</h2>
-    <p className="queueSummary" aria-live="polite">{summary}</p>
-    <div className="queueCounts"><span><strong>{counts.queued}</strong> queued</span><span><strong>{counts.running}</strong> running</span><span><strong>{counts.done}</strong> done</span><span><strong>{counts.error}</strong> errors</span></div>
-    <div className={clsx('activeJob', !active && 'emptyActive')}>
-      {active ? <><strong>Now converting</strong><br/><span>{active.bookTitle}</span></> : <><strong>No active conversion</strong><br/><span>Queued books will run one at a time.</span></>}
+function DoneCard() {
+  const { book, resultUrl, resultName, reset } = useStore();
+  if (!book) return null;
+  return (
+    <div className="stageCard bookCard done">
+      <div className="readyMark"><Check /></div>
+      <h2 className="bookTitle">{book.title}</h2>
+      <div className="bookMeta">Ready for your Kindle · AZW3</div>
+      <div className="doneActions">
+        <a className="downloadBtn" href={resultUrl} download={resultName}>
+          <Download /> Download {resultName}
+        </a>
+        <button className="textBtn" onClick={reset}><RotateCcw /> Convert another</button>
+      </div>
     </div>
-    <div className="jobList">{visibleJobs.map(j => <div key={j.id} className={`job ${j.status}`}><span>{j.status}</span><strong title={j.bookTitle}>{j.bookTitle}</strong>{j.startedAt && <small>{Math.round(((j.finishedAt ?? Date.now()) - j.startedAt) / 1000)}s</small>}</div>)}{visibleJobs.length === 0 && <div className="job emptyJob"><span>idle</span><strong>No queued books</strong><small>—</small></div>}</div>
-    <details open><summary>Logs</summary><div className="logList">{logs.slice(-30).reverse().map(l => <div key={l.id}><time>{new Date(l.time).toLocaleTimeString()}</time><span title={l.message}>{l.message}</span></div>)}</div></details>
-  </aside>;
+  );
 }
 
-function AssistantApiNote() {
-  return <section className="card apiNote"><h2>LLM-ready library API</h2><p>This app exposes <code>window.kindleLibrary</code> for future assistants: list, rename, tag, annotate, convert, and delete books with user permission.</p><pre>{`await kindleLibrary.listBooks()
-await kindleLibrary.renameBook(id, "New title")
-await kindleLibrary.addTags(id, ["fiction", "queued"])
-await kindleLibrary.convertBook(id, { output_profile: "kindle_oasis" })`}</pre></section>;
-}
-
-function AppFooter() {
-  return <footer className="appFooter">
-    <div>
-      <strong>Excalibur for Android</strong>
-      <span>Latest debug build from GitHub Actions.</span>
+function ErrorCard() {
+  const { error, book, reset } = useStore();
+  return (
+    <div className="stageCard bookCard error">
+      {book && <h2 className="bookTitle">{book.title}</h2>}
+      <div className="errorTitle">That didn't work</div>
+      <div className="errorBody">{error}</div>
+      <button className="textBtn" onClick={reset}><RotateCcw /> Try another book</button>
     </div>
-    <a className="apkLink" href="downloads/excalibur-debug.apk" download>
-      <Smartphone/>
-      Download APK
-      <ExternalLink/>
-    </a>
-  </footer>;
+  );
 }
 
-function App() { return <><Hero/><div className="appShell"><main><DeviceSetup/><UploadPanel/><LibraryView/><AssistantApiNote/></main><QueueSidebar/></div><AppFooter/></>; }
+function App() {
+  const phase = useStore((s) => s.phase);
+  return (
+    <div className="page">
+      <header className="brand"><Sword className="brandMark" /> Excalibur</header>
 
-createRoot(document.getElementById('root')!).render(<App/>);
+      <main className="hero">
+        <h1>Draw any book into Kindle form.</h1>
+        <p className="lede">
+          Drop an EPUB or MOBI and Excalibur forges a Kindle-ready AZW3 — converted
+          right here in your browser. Nothing is uploaded; the book never leaves your device.
+        </p>
+
+        {phase === 'idle' && <Dropzone />}
+        {phase === 'converting' && <ConvertingCard />}
+        {phase === 'done' && <DoneCard />}
+        {phase === 'error' && <ErrorCard />}
+      </main>
+
+      <footer className="footer">
+        <div className="footerRow">
+          <div className="footerText">
+            <strong>Reading on a Kindle?</strong>
+            <span>Excalibur for Android sends books straight to it over Wi-Fi — no cable, no account.</span>
+          </div>
+          <a className="apkBtn" href="downloads/excalibur-debug.apk" download>
+            <Smartphone /> Get the Android app
+          </a>
+        </div>
+        <p className="verse">“Just the place for a Snark!” the Bellman cried — and converted it.</p>
+        <div className="footerLinks">
+          <a href="https://github.com/jmandel/excalibur" target="_blank" rel="noopener noreferrer">
+            <ExternalLink /> Source on GitHub
+          </a>
+          <span>Conversion by calibre · free software under the GPLv3</span>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+createRoot(document.getElementById('root')!).render(<App />);

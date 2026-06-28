@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.map
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 data class AppSettings(
-    val lastProfile: String = "kindle_pw",
+    val lastProfile: String = "kindle_oasis",
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = true,
     val serverPort: Int = 8888,
@@ -30,7 +30,7 @@ class SettingsStore(private val context: Context) {
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
         AppSettings(
-            lastProfile = p[Keys.profile] ?: "kindle_pw",
+            lastProfile = p[Keys.profile] ?: "kindle_oasis",
             themeMode = p[Keys.theme]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM,
             dynamicColor = p[Keys.dynamic] ?: true,
             serverPort = p[Keys.port] ?: 8888,

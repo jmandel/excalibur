@@ -18,7 +18,7 @@ data class Book(
     val ext: String,
     val originalSize: Long = 0,
     val status: BookStatus = BookStatus.IMPORTED,
-    val profile: String = "kindle_pw",
+    val profile: String = "kindle_oasis",
     val azw3Path: String? = null,
     val azw3Size: Long = 0,
     val error: String = "",

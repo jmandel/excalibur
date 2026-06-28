@@ -7,6 +7,20 @@ Excalibur is a local-first Kindle library/conversion project. It builds one stat
 
 Pyodide is no longer part of the product path. The remaining Python runtime is the repository-built static WASI CPython artifact.
 
+## License
+
+Excalibur is distributed under the **GNU General Public License v3** (see `LICENSE`),
+because it bundles and distributes [calibre](https://calibre-ebook.com/), which is
+GPLv3. Everything else it ships is GPL-compatible:
+
+- **calibre** — GPLv3
+- **CPython** — PSF license; **Pillow** (HPND), **lxml** (BSD), and the other native
+  modules in the WASI runtime — permissive, GPL-compatible
+- **Literata** and **Inter** fonts (bundled, self-hosted) — SIL Open Font License 1.1
+- Web dependencies (React, Zustand, fflate, idb, clsx, lucide-react,
+  `@bjorn3/browser_wasi_shim`) — MIT / ISC / Apache-2.0
+- Bundled sample books — Lewis Carroll, public domain (Project Gutenberg)
+
 ## Runtime artifact pipeline
 
 The source of truth is the static WASI CPython/calibre build under `experiments/static-wasi-python` plus `third_party/calibre`.
