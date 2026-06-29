@@ -10,6 +10,7 @@ import com.joshuamandel.excalibur.data.MIGRATION_1_2
 import com.joshuamandel.excalibur.data.MIGRATION_2_3
 import com.joshuamandel.excalibur.data.SettingsStore
 import com.joshuamandel.excalibur.data.Storage
+import com.joshuamandel.excalibur.viewer.ViewerArtifactManager
 import com.joshuamandel.excalibur.wasmtime.WasmtimeRuntime
 
 /** Tiny service locator — one shared object graph for both the Activity and the Service. */
@@ -22,6 +23,7 @@ class AppGraph private constructor(context: Context) {
     val settings = SettingsStore(app)
     val runtime = WasmtimeRuntime(app)
     val conversion = ConversionManager(repo, runtime)
+    val viewerArtifacts = ViewerArtifactManager(repo, runtime)
 
     companion object {
         @Volatile private var instance: AppGraph? = null

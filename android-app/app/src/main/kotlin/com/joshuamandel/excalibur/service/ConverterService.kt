@@ -21,20 +21,20 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
- * Foreground service that runs the Kindle web server and the conversion queue while the
- * user needs them. Deliberately START_NOT_STICKY with no reschedule: when the user taps
- * "Exit & stop server", the socket closes, the notification clears, and the service stays
- * dead until explicitly relaunched — no background resurrection.
+ * Foreground service that runs conversion work and, only when explicitly enabled,
+ * the Kindle web server. Deliberately START_NOT_STICKY with no reschedule: when
+ * the server is stopped and no conversion is active, the service exits instead
+ * of resurrecting in the background.
  */
 class ConverterService : LifecycleService() {
     private lateinit var graph: AppGraph
     private var server: KindleHttpServer? = null
+    private var converting = false
 
     override fun onCreate() {
         super.onCreate()
         graph = AppGraph.get(this)
         startForeground(NOTIF_ID, buildNotification("Starting…"))
-        lifecycleScope.launch { bindServer() }
         // Pre-warm the converter (unpack runtime + compile/deserialize the module) off
         // the critical path, so the first conversion doesn't wait on the ~4s compile.
         lifecycleScope.launch(Dispatchers.IO) { runCatching { graph.runtime.prewarm() } }
@@ -52,18 +52,43 @@ class ConverterService : LifecycleService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         when (intent?.action) {
-            ACTION_EXIT -> { shutdown(); return START_NOT_STICKY }
+            ACTION_EXIT, ACTION_STOP_SERVER -> { stopServer(); return START_NOT_STICKY }
+            ACTION_START_SERVER -> lifecycleScope.launch { bindServer() }
             ACTION_RESTART -> lifecycleScope.launch { bindServer() }
-            ACTION_CONVERT -> lifecycleScope.launch { graph.conversion.drain(); notify(notifText()) }
+            ACTION_CONVERT -> drainConversions()
         }
         return START_NOT_STICKY
     }
 
-    private fun shutdown() {
+    private fun drainConversions() {
+        if (converting) return
+        lifecycleScope.launch {
+            converting = true
+            notify(notifText())
+            try {
+                graph.conversion.drain()
+            } finally {
+                converting = false
+                if (server == null) {
+                    stopIfIdle()
+                } else {
+                    notify(notifText())
+                }
+            }
+        }
+    }
+
+    private fun stopServer() {
         server?.stop(); server = null
         ServerBus.state.value = ServerBus.Info(running = false, port = 0)
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+        if (converting) notify(notifText()) else stopIfIdle()
+    }
+
+    private fun stopIfIdle() {
+        if (server == null && !converting) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
     }
 
     override fun onDestroy() {
@@ -74,7 +99,7 @@ class ConverterService : LifecycleService() {
 
     private fun notifText(): String {
         val info = ServerBus.state.value
-        if (!info.running) return "Server stopped"
+        if (!info.running) return if (converting) "Converting queued books" else "Server stopped"
         val addr = discoverAddresses().firstOrNull()?.ip ?: "this device"
         return "Kindle: open  $addr:${info.port}"
     }
@@ -91,19 +116,21 @@ class ConverterService : LifecycleService() {
             this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val exit = PendingIntent.getService(
-            this, 1, Intent(this, ConverterService::class.java).setAction(ACTION_EXIT),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        return NotificationCompat.Builder(this, CHANNEL)
+        val builder = NotificationCompat.Builder(this, CHANNEL)
             .setContentTitle("Excalibur")
             .setContentText(text)
             .setSmallIcon(R.drawable.ic_book)
             .setContentIntent(open)
             .setOngoing(true)
             .setShowWhen(false)
-            .addAction(0, "Exit & stop server", exit)
-            .build()
+        if (ServerBus.state.value.running) {
+            val stop = PendingIntent.getService(
+                this, 1, Intent(this, ConverterService::class.java).setAction(ACTION_STOP_SERVER),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            builder.addAction(0, "Stop server", stop)
+        }
+        return builder.build()
     }
 
     companion object {
@@ -112,12 +139,22 @@ class ConverterService : LifecycleService() {
         const val ACTION_CONVERT = "com.joshuamandel.excalibur.CONVERT"
         const val ACTION_EXIT = "com.joshuamandel.excalibur.EXIT"
         const val ACTION_RESTART = "com.joshuamandel.excalibur.RESTART"
+        const val ACTION_START_SERVER = "com.joshuamandel.excalibur.START_SERVER"
+        const val ACTION_STOP_SERVER = "com.joshuamandel.excalibur.STOP_SERVER"
 
-        /** Ensure the server is up and drain any queued conversions. */
-        fun startAndConvert(context: Context) {
+        /** Drain queued conversions without enabling Kindle web access. */
+        fun convert(context: Context) {
             ContextCompat.startForegroundService(
                 context,
                 Intent(context, ConverterService::class.java).setAction(ACTION_CONVERT)
+            )
+        }
+
+        /** Start Kindle web access. Conversion remains independently queued. */
+        fun startServer(context: Context) {
+            ContextCompat.startForegroundService(
+                context,
+                Intent(context, ConverterService::class.java).setAction(ACTION_START_SERVER)
             )
         }
 
@@ -129,8 +166,8 @@ class ConverterService : LifecycleService() {
             )
         }
 
-        fun exit(context: Context) {
-            context.startService(Intent(context, ConverterService::class.java).setAction(ACTION_EXIT))
+        fun stopServer(context: Context) {
+            context.startService(Intent(context, ConverterService::class.java).setAction(ACTION_STOP_SERVER))
         }
     }
 }

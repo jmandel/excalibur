@@ -139,4 +139,37 @@ class WasmtimeRuntime(private val context: Context) {
         if (r.ok && generated.exists()) generated.copyTo(output, overwrite = true)
         return r
     }
+
+    fun generateViewerHtml(azw3: File, outputDir: File, workDir: File, onLine: (String) -> Unit = {}): Result {
+        workDir.deleteRecursively()
+        workDir.mkdirs()
+        val source = File(workDir, "source.azw3")
+        azw3.copyTo(source, overwrite = true)
+        val script = """
+            import os, shutil, zipfile
+            from pathlib import Path
+            os.chdir('/')
+            import browser_convert
+            from convert_with_plumber import convert
+            print('viewer imported calibre', flush=True)
+            src = Path('/work/source.azw3')
+            htmlz = Path('/work/view.htmlz')
+            view = Path('/work/view')
+            if view.exists():
+                shutil.rmtree(view)
+            convert(src, htmlz, options={})
+            view.mkdir(parents=True, exist_ok=True)
+            with zipfile.ZipFile(htmlz, 'r') as z:
+                z.extractall(view)
+            print('viewer html ready', flush=True)
+        """.trimIndent()
+        val result = runPython(script, workDir, onLine = onLine)
+        val generated = File(workDir, "view")
+        if (result.ok && generated.exists()) {
+            outputDir.deleteRecursively()
+            outputDir.mkdirs()
+            generated.copyRecursively(outputDir, overwrite = true)
+        }
+        return result
+    }
 }

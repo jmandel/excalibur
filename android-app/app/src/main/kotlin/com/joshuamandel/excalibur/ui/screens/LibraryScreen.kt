@@ -85,6 +85,7 @@ fun LibraryScreen(
     server: ServerBus.Info,
     configuredPort: Int,
     onOpenBook: (String) -> Unit,
+    onReadBook: (String) -> Unit,
     onAddBooks: () -> Unit,
     onOpenSettings: () -> Unit,
     onReconvert: (Book) -> Unit,
@@ -231,12 +232,12 @@ fun LibraryScreen(
                             onClick = {
                                 when {
                                     selectionMode -> toggle(book.id)
-                                    // The post-import detail screen still serves in-progress/errored
-                                    // books; ready books act through the ⋮ menu, not a tap target.
-                                    !book.isReady -> onOpenBook(book.id)
+                                    book.isReady -> onReadBook(book.id)
+                                    else -> onOpenBook(book.id)
                                 }
                             },
                             onLongClick = { toggle(book.id) },
+                            onPreview = { onReadBook(book.id) },
                             onReconvert = { onReconvert(book) },
                             onDelete = { onDelete(book.id) },
                             onShare = { shareBook(book) },
@@ -319,6 +320,7 @@ private fun BookRow(
     selected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    onPreview: () -> Unit,
     onReconvert: () -> Unit,
     onDelete: () -> Unit,
     onShare: () -> Unit,
@@ -369,6 +371,7 @@ private fun BookRow(
                 IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, "More") }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     if (book.isReady) {
+                        DropdownMenuItem(text = { Text("Preview") }, onClick = { menu = false; onPreview() })
                         // Share works to anyone across apps (no network needed) — the general
                         // option, so it's first. QR/link only reach devices on the same Wi-Fi.
                         DropdownMenuItem(text = { Text("Share…") }, onClick = { menu = false; onShare() })

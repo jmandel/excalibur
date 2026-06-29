@@ -4,6 +4,7 @@ Native Android Kindle library manager. The preferred runtime path is now native 
 
 - Android document picker imports into app-private storage.
 - Local converted AZW3 file storage.
+- Lazy in-app HTML previews for ready AZW3 files, generated only when opened.
 - A tiny built-in HTTP server for the Kindle Experimental Browser.
 - LAN/hotspot IP discovery and URL display.
 - One-way Drive-backed inbox sync via Android's system folder picker.
@@ -15,12 +16,15 @@ Native Android Kindle library manager. The preferred runtime path is now native 
 1. Open the app and choose the Kindle profile first. The 2024/12th-gen Paperwhite uses `kindle_oasis`, the closest calibre profile currently available in this source tree.
 2. Import EPUB/MOBI/AZW files or load bundled samples.
 3. After device confirmation, imported books are queued automatically and conversion status appears in the page-level log.
-4. Keep the Android app open. On the Kindle, open one of the displayed `http://<ip>:<port>/` URLs.
+4. Turn on "Send to Kindle" from the library page or from a single-book success
+   page. On the Kindle, open one of the displayed `http://<ip>:<port>/` URLs.
 5. The Kindle page is deliberately plain: latest AZW3 downloads are first, with one search box for title/author/tag filtering.
-6. In Settings, choose a Drive-backed inbox folder and use Sync Drive now to
+6. Tap a ready book or use Preview to generate and open a local HTML preview.
+   This is app-private WebView content; it does not start the Kindle server.
+7. In Settings, choose a Drive-backed inbox folder and use Sync Drive now to
    import new ebook files into the on-phone library. The optional daily sync
    runs only while charging, with network available and battery/storage not low.
-7. For USB sync, connect a Kindle with a USB-OTG cable, unlock it, allow file
+8. For USB sync, connect a Kindle with a USB-OTG cable, unlock it, allow file
    transfer, then use Settings -> Sync to Kindle. "Auto-sync when connected" is
    opt-in and only starts after Android opens Excalibur for a matching Kindle
    attach event.

@@ -26,8 +26,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.io.File
+
+sealed class ViewerState {
+    data object Idle : ViewerState()
+    data class Preparing(val bookId: String, val title: String, val message: String) : ViewerState()
+    data class Ready(val bookId: String, val title: String, val entryPath: String) : ViewerState()
+    data class Error(val bookId: String, val title: String, val message: String) : ViewerState()
+}
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val graph = AppGraph.get(app)
@@ -38,6 +46,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppSettings())
     val active = graph.conversion.active
     val server = ServerBus.state
+    private val _viewer = MutableStateFlow<ViewerState>(ViewerState.Idle)
+    val viewer = _viewer.asStateFlow()
+    private var viewerJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -57,7 +68,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val profile = settings.value.lastProfile
             val ids = uris.mapNotNull { runCatching { graph.repo.importAndQueue(it, profile) }.getOrNull() }
-            ConverterService.startAndConvert(getApplication())
+            ConverterService.convert(getApplication())
             // Open the detail page only for a single import; for a batch, stay on the
             // library so all of them can be watched converting at once.
             if (ids.size == 1) openBook.emit(ids.first())
@@ -66,7 +77,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun reconvert(book: Book) = viewModelScope.launch {
         graph.repo.requeue(book.id, settings.value.lastProfile)
-        ConverterService.startAndConvert(getApplication())
+        ConverterService.convert(getApplication())
     }
 
     fun delete(id: String) = viewModelScope.launch { graph.repo.delete(id) }
@@ -82,13 +93,47 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch { graph.settings.setThemeMode(mode) }
     fun setDynamicColor(on: Boolean) = viewModelScope.launch { graph.settings.setDynamicColor(on) }
 
-    fun startServer() = ConverterService.startAndConvert(getApplication())
-    fun exitServer() = ConverterService.exit(getApplication())
-    fun ensureServer() = ConverterService.startAndConvert(getApplication())
+    fun startServer() = ConverterService.startServer(getApplication())
+    fun exitServer() = ConverterService.stopServer(getApplication())
 
     fun setPort(port: Int) = viewModelScope.launch {
         graph.settings.setPort(port)
         if (ServerBus.state.value.running) ConverterService.restart(getApplication())
+    }
+
+    fun prepareViewer(id: String, force: Boolean = false) {
+        val current = _viewer.value
+        if (!force && current is ViewerState.Preparing && current.bookId == id) return
+        if (!force && current is ViewerState.Ready && current.bookId == id && File(current.entryPath).exists()) return
+        viewerJob?.cancel()
+        viewerJob = viewModelScope.launch {
+            val book = graph.repo.get(id)
+            if (book == null) {
+                _viewer.value = ViewerState.Error(id, "Preview", "Book not found.")
+                return@launch
+            }
+            _viewer.value = ViewerState.Preparing(id, book.title, "Preparing preview...")
+            try {
+                val artifact = graph.viewerArtifacts.prepare(book) { line ->
+                    _viewer.value = ViewerState.Preparing(id, book.title, viewerMessage(line))
+                }
+                _viewer.value = ViewerState.Ready(id, book.title, artifact.entry.absolutePath)
+            } catch (e: Exception) {
+                _viewer.value = ViewerState.Error(id, book.title, e.message ?: "Preview generation failed.")
+            }
+        }
+    }
+
+    private fun viewerMessage(line: String): String {
+        val text = line.trim()
+        return when {
+            text.isBlank() -> "Preparing preview..."
+            text.contains("viewer imported calibre", ignoreCase = true) -> "Starting calibre..."
+            text.contains("viewer html ready", ignoreCase = true) -> "Opening preview..."
+            text.contains("input plugin", ignoreCase = true) -> "Reading book..."
+            text.contains("output plugin", ignoreCase = true) -> "Writing HTML..."
+            else -> text.take(120)
+        }
     }
 
     // --- USB/MTP sync to a connected Kindle (experimental spike) ---
@@ -144,7 +189,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         try {
             val result = DriveInboxSync.sync(getApplication(), convertQueued = false) { _driveSyncStatus.value = it }
             _driveSyncStatus.value = result.summary()
-            if (result.changed) ConverterService.startAndConvert(getApplication())
+            if (result.changed) ConverterService.convert(getApplication())
         } finally {
             _driveSyncing.value = false
         }

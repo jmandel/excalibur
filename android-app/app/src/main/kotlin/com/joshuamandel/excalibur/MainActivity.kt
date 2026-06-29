@@ -25,6 +25,7 @@ import com.joshuamandel.excalibur.data.ThemeMode
 import com.joshuamandel.excalibur.ui.AppViewModel
 import com.joshuamandel.excalibur.ui.screens.BookScreen
 import com.joshuamandel.excalibur.ui.screens.LibraryScreen
+import com.joshuamandel.excalibur.ui.screens.ReaderScreen
 import com.joshuamandel.excalibur.ui.screens.SettingsScreen
 import com.joshuamandel.excalibur.ui.theme.KindleConverterTheme
 
@@ -43,7 +44,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        vm.ensureServer()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
@@ -104,6 +104,7 @@ private fun AppNav(vm: AppViewModel, onPickBooks: () -> Unit, onPickDriveInbox: 
     val server by vm.server.collectAsState()
     val active by vm.active.collectAsState()
     val settings by vm.settings.collectAsStateWithLifecycle()
+    val viewer by vm.viewer.collectAsState()
 
     LaunchedEffect(Unit) {
         vm.openBook.collect { id -> nav.navigate("book/$id") }
@@ -116,6 +117,7 @@ private fun AppNav(vm: AppViewModel, onPickBooks: () -> Unit, onPickDriveInbox: 
                 server = server,
                 configuredPort = settings.serverPort,
                 onOpenBook = { nav.navigate("book/$it") },
+                onReadBook = { nav.navigate("reader/$it") },
                 onAddBooks = onPickBooks,
                 onOpenSettings = { nav.navigate("settings") },
                 onReconvert = { vm.reconvert(it) },
@@ -136,13 +138,29 @@ private fun AppNav(vm: AppViewModel, onPickBooks: () -> Unit, onPickDriveInbox: 
                 BookScreen(
                     book = b,
                     active = active,
-                    port = if (server.running) server.port else 0,
+                    server = server,
                     onBack = { nav.popBackStack() },
                     onViewLibrary = { nav.popBackStack("library", inclusive = false) },
                     onAddMore = onPickBooks,
+                    onPreview = { nav.navigate("reader/${b.id}") },
                     onReconvert = { vm.reconvert(it) },
+                    onStartServer = { vm.startServer() },
+                    onStopServer = { vm.exitServer() },
                 )
             }
+        }
+        composable("reader/{id}") { entry ->
+            val id = entry.arguments?.getString("id") ?: return@composable
+            val book by vm.bookFlow(id).collectAsStateWithLifecycle(initialValue = null)
+            LaunchedEffect(id, book?.azw3Path, book?.convertedAt, book?.status) {
+                if (book?.isReady == true) vm.prepareViewer(id)
+            }
+            ReaderScreen(
+                book = book,
+                viewer = viewer,
+                onBack = { nav.popBackStack() },
+                onRetry = { vm.prepareViewer(id, force = true) },
+            )
         }
         composable("settings") {
             val syncStatus by vm.syncStatus.collectAsState()

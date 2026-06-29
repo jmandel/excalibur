@@ -105,7 +105,7 @@ ANDROID_HOME=/path/to/android-sdk ANDROID_SDK_ROOT=/path/to/android-sdk \
   ./android-app/gradlew -p android-app assembleDebug
 ```
 
-The Android launcher opens the native Wasmtime dashboard. It converts a bundled EPUB to AZW3 and serves it through the local Kindle HTTP server.
+The Android launcher opens the native Wasmtime library. Imported books convert automatically; the local Kindle HTTP server starts only when "Send to Kindle" is toggled on.
 
 ## CI/release
 
