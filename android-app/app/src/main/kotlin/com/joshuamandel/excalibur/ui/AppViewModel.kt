@@ -14,7 +14,6 @@ import com.joshuamandel.excalibur.data.Book
 import com.joshuamandel.excalibur.data.ThemeMode
 import com.joshuamandel.excalibur.drive.DriveInboxSync
 import com.joshuamandel.excalibur.drive.DriveInboxWork
-import com.joshuamandel.excalibur.drive.DrivePublicFolder
 import com.joshuamandel.excalibur.service.ConverterService
 import com.joshuamandel.excalibur.service.ServerBus
 import com.joshuamandel.excalibur.usb.SyncOutcome
@@ -54,7 +53,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     init {
         viewModelScope.launch {
             val snapshot = graph.settings.settings.first()
-            DriveInboxWork.configure(getApplication(), snapshot.driveDailySyncOnCharger && snapshot.hasDriveSource())
+            DriveInboxWork.configure(getApplication(), snapshot.driveDailySyncOnCharger && snapshot.driveInboxUri.isNotBlank())
         }
     }
 
@@ -155,29 +154,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val name = DriveInboxSync.folderName(app, uri)
         graph.settings.setDriveInbox(uri.toString(), name)
         _driveSyncStatus.value = "Drive inbox selected: $name"
-        DriveInboxWork.configure(app, settings.value.driveDailySyncOnCharger && settings.value.copy(driveInboxUri = uri.toString()).hasDriveSource())
-    }
-
-    fun setDrivePublicFolderUrl(url: String) = viewModelScope.launch {
-        val clean = url.trim()
-        if (clean.isBlank()) {
-            clearDrivePublicFolderUrl()
-            return@launch
-        }
-        if (!DrivePublicFolder.isFolderUrl(clean)) {
-            _driveSyncStatus.value = "Paste a Google Drive folder link."
-            return@launch
-        }
-        graph.settings.setDrivePublicFolderUrl(clean)
-        DriveInboxWork.configure(getApplication(), settings.value.copy(drivePublicFolderUrl = clean).driveDailySyncOnCharger)
-        _driveSyncStatus.value = "Public Drive folder link saved."
-    }
-
-    fun clearDrivePublicFolderUrl() = viewModelScope.launch {
-        graph.settings.clearDrivePublicFolderUrl()
-        val snapshot = settings.value.copy(drivePublicFolderUrl = "")
-        DriveInboxWork.configure(getApplication(), snapshot.driveDailySyncOnCharger && snapshot.hasDriveSource())
-        _driveSyncStatus.value = "Public Drive folder link cleared."
+        DriveInboxWork.configure(app, settings.value.driveDailySyncOnCharger)
     }
 
     fun clearDriveInbox() = viewModelScope.launch {
@@ -186,26 +163,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             runCatching { app.contentResolver.releasePersistableUriPermission(Uri.parse(it), Intent.FLAG_GRANT_READ_URI_PERMISSION) }
         }
         graph.settings.clearDriveInbox()
-        val snapshot = settings.value.copy(driveInboxUri = "", driveInboxName = "")
-        DriveInboxWork.configure(app, enabled = snapshot.driveDailySyncOnCharger && snapshot.hasDriveSource())
+        DriveInboxWork.configure(app, enabled = false)
         _driveSyncStatus.value = "Drive inbox cleared."
     }
 
     fun setDriveDailySyncOnCharger(on: Boolean) = viewModelScope.launch {
-        val hasSource = settings.value.hasDriveSource()
-        if (on && !hasSource) {
-            _driveSyncStatus.value = "Choose a Drive folder or save a public link first."
+        val hasFolder = settings.value.driveInboxUri.isNotBlank()
+        if (on && !hasFolder) {
+            _driveSyncStatus.value = "Choose a Drive inbox folder first."
             return@launch
         }
         graph.settings.setDriveDailySyncOnCharger(on)
-        DriveInboxWork.configure(getApplication(), enabled = on && hasSource)
+        DriveInboxWork.configure(getApplication(), enabled = on && hasFolder)
         _driveSyncStatus.value = if (on) "Daily Drive sync will run while charging." else "Daily Drive sync is off."
     }
 
     fun syncDriveInboxNow() = viewModelScope.launch {
         if (_driveSyncing.value) return@launch
-        if (!settings.value.hasDriveSource()) {
-            _driveSyncStatus.value = "Choose a Drive folder or save a public link first."
+        if (settings.value.driveInboxUri.isBlank()) {
+            _driveSyncStatus.value = "Choose a Drive inbox folder first."
             return@launch
         }
         _driveSyncing.value = true
@@ -271,9 +247,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             is SyncOutcome.Done -> outcome.result.let { "Done — ${it.pushed} added, ${it.deleted} removed, ${it.skipped} already there." }
         }
     }
-
-    private fun AppSettings.hasDriveSource(): Boolean =
-        drivePublicFolderUrl.isNotBlank() || driveInboxUri.isNotBlank()
 
     /**
      * A stable, human-readable per-install id for this phone's Kindle folder, e.g.

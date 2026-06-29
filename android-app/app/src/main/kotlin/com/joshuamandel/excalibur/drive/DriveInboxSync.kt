@@ -57,17 +57,7 @@ object DriveInboxSync {
             val app = context.applicationContext
             val graph = AppGraph.get(app)
             val settings = graph.settings.settings.first()
-            if (settings.drivePublicFolderUrl.isNotBlank()) {
-                return@withContext syncPublicFolder(
-                    app = app,
-                    url = settings.drivePublicFolderUrl,
-                    seen = settings.driveImportedDocumentKeys,
-                    profile = settings.lastProfile,
-                    convertQueued = convertQueued,
-                    onLog = onLog,
-                )
-            }
-            if (settings.driveInboxUri.isBlank()) return@withContext DriveInboxSyncResult(message = "No Drive inbox folder or public link selected.")
+            if (settings.driveInboxUri.isBlank()) return@withContext DriveInboxSyncResult(message = "No Drive inbox folder selected.")
 
             val rootUri = Uri.parse(settings.driveInboxUri)
             val root = DocumentFile.fromTreeUri(app, rootUri)
@@ -121,70 +111,6 @@ object DriveInboxSync {
                 graph.settings.setDriveLastSyncSummary(it.summary())
             }
         }
-
-    private suspend fun syncPublicFolder(
-        app: Context,
-        url: String,
-        seen: Set<String>,
-        profile: String,
-        convertQueued: Boolean,
-        onLog: (String) -> Unit,
-    ): DriveInboxSyncResult {
-        val graph = AppGraph.get(app)
-        val listing = runCatching {
-            DrivePublicFolder.list(url, onLog)
-        }.getOrElse { error ->
-            val result = DriveInboxSyncResult(
-                failed = 1,
-                message = "Drive sync failed: ${error.message ?: error.javaClass.simpleName}",
-            )
-            graph.settings.setDriveLastSyncSummary(result.summary())
-            return result
-        }
-        onLog("Public Drive link returned ${listing.files.size} visible file${if (listing.files.size == 1) "" else "s"}.")
-
-        var imported = 0
-        var duplicates = 0
-        var skipped = 0
-        var ignored = 0
-        var failed = 0
-        val importedKeys = mutableListOf<String>()
-
-        for (doc in listing.files.sortedBy { it.displayName.lowercase(Locale.US) }) {
-            val name = doc.name
-            val ext = name.substringAfterLast('.', "").lowercase(Locale.US)
-            if (ext !in supported) { ignored++; continue }
-            val key = publicDocumentKey(doc)
-            if (key in seen) { skipped++; continue }
-            var temp: java.io.File? = null
-            runCatching {
-                onLog("Downloading ${doc.displayName}")
-                temp = DrivePublicFolder.download(app, doc)
-                onLog("Importing ${doc.displayName}")
-                val result = graph.repo.importAndQueueDetailed(Uri.fromFile(requireNotNull(temp)), profile)
-                if (result.created) imported++ else duplicates++
-                importedKeys += key
-            }.getOrElse {
-                failed++
-                onLog("Failed to import ${doc.displayName}: ${it.message ?: it.javaClass.simpleName}")
-            }
-            temp?.parentFile?.deleteRecursively()
-        }
-
-        graph.settings.addDriveImportedDocumentKeys(importedKeys)
-        if (convertQueued && imported > 0) graph.conversion.drain()
-
-        return DriveInboxSyncResult(
-            imported = imported,
-            duplicates = duplicates,
-            skipped = skipped,
-            ignored = ignored,
-            failed = failed,
-            visibleFiles = listing.files.size,
-        ).also {
-            graph.settings.setDriveLastSyncSummary(it.summary())
-        }
-    }
 
     private fun requestRefresh(context: Context, treeUri: Uri): Boolean {
         val resolver = context.contentResolver
@@ -254,9 +180,6 @@ object DriveInboxSync {
 
     private fun documentKey(doc: DriveDocument): String =
         listOf(doc.uri.toString(), doc.size.toString(), doc.lastModified.toString()).joinToString("|")
-
-    private fun publicDocumentKey(doc: PublicDriveFile): String =
-        listOf("public", doc.id, doc.resourceKey.orEmpty()).joinToString("|")
 
     private data class DriveListing(
         val files: List<DriveDocument> = emptyList(),

@@ -25,7 +25,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -64,8 +63,6 @@ fun SettingsScreen(
     onSetPort: (Int) -> Unit,
     onChooseDriveInbox: () -> Unit,
     onClearDriveInbox: () -> Unit,
-    onSetDrivePublicFolderUrl: (String) -> Unit,
-    onClearDrivePublicFolderUrl: () -> Unit,
     onSyncDriveInbox: () -> Unit,
     onSetDriveDailySyncOnCharger: (Boolean) -> Unit,
     onSyncToKindle: () -> Unit,
@@ -77,7 +74,6 @@ fun SettingsScreen(
     KeepScreenOn(syncing || driveSyncing)
 
     var showPortDialog by remember { mutableStateOf(false) }
-    var publicDriveLinkDraft by remember(settings.drivePublicFolderUrl) { mutableStateOf(settings.drivePublicFolderUrl) }
     if (showPortDialog) {
         PortDialog(
             current = serverRunningPort ?: settings.serverPort,
@@ -153,40 +149,10 @@ fun SettingsScreen(
             Divider()
             SectionLabel("Drive inbox")
             Text(
-                "Save a public Google Drive folder link, or choose a Drive-backed Android folder. Excalibur imports new ebook files into this phone's library.",
+                "Choose a Google Drive-backed folder. Excalibur imports new ebook files from it into this phone's library.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = publicDriveLinkDraft,
-                onValueChange = { publicDriveLinkDraft = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Public folder link") },
-                placeholder = { Text("https://drive.google.com/drive/folders/...") },
-                enabled = !driveSyncing,
-                maxLines = 3,
-            )
-            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedButton(
-                    onClick = { onSetDrivePublicFolderUrl(publicDriveLinkDraft) },
-                    enabled = !driveSyncing && publicDriveLinkDraft.trim() != settings.drivePublicFolderUrl,
-                ) { Text("Save link") }
-                Spacer(Modifier.width(8.dp))
-                TextButton(
-                    onClick = {
-                        publicDriveLinkDraft = ""
-                        onClearDrivePublicFolderUrl()
-                    },
-                    enabled = !driveSyncing && settings.drivePublicFolderUrl.isNotBlank(),
-                ) { Text("Clear link") }
-            }
-            if (settings.drivePublicFolderUrl.isNotBlank()) {
-                Text(
-                    "Sync uses the public link before the Android folder picker.",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(8.dp))
-            }
             Text(
                 if (settings.driveInboxName.isBlank()) "No folder selected" else "Folder: ${settings.driveInboxName}",
                 style = MaterialTheme.typography.bodyLarge,
@@ -197,7 +163,7 @@ fun SettingsScreen(
                 Spacer(Modifier.width(8.dp))
                 TextButton(onClick = onClearDriveInbox, enabled = settings.driveInboxUri.isNotBlank()) { Text("Clear") }
             }
-            val hasDriveSource = settings.drivePublicFolderUrl.isNotBlank() || settings.driveInboxUri.isNotBlank()
+            val hasDriveSource = settings.driveInboxUri.isNotBlank()
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Daily sync while charging", style = MaterialTheme.typography.bodyLarge)
