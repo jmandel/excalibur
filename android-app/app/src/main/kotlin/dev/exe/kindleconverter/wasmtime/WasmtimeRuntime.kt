@@ -95,6 +95,35 @@ class WasmtimeRuntime(private val context: Context) {
         )
     }
 
+    /**
+     * Rewrite an AZW3's embedded title via calibre's metadata API. Produces the retitled
+     * file at workDir/book.azw3 and returns it on success, or null on failure (caller should
+     * fall back to the original). Used to surface tags on the Kindle, which shows the file's
+     * metadata title rather than its filename.
+     */
+    fun retitle(azw3: File, newTitle: String, workDir: File, onLine: (String) -> Unit = {}): File? {
+        workDir.mkdirs()
+        val target = File(workDir, "book.azw3")
+        if (azw3.absolutePath != target.absolutePath) azw3.copyTo(target, overwrite = true)
+        val titleLit = JSONObject.quote(newTitle) // valid Python string literal too
+        val script = """
+            import os
+            os.chdir('/')
+            import browser_convert  # bootstraps the calibre WASI environment (shims, extensions)
+            # Use the MOBI metadata writer directly — it's what calibre's azw3 metadata
+            # plugin uses, and avoids the plugin system (customize.ui) that the minimal
+            # WASI calibre build doesn't ship.
+            from calibre.ebooks.metadata.mobi import get_metadata, set_metadata
+            with open('/work/book.azw3', 'r+b') as f:
+                mi = get_metadata(f)
+                mi.title = $titleLit
+                f.seek(0)
+                set_metadata(f, mi)
+            print('retitled to ' + $titleLit, flush=True)
+        """.trimIndent()
+        return if (runPython(script, workDir, onLine = onLine).ok) target else null
+    }
+
     fun convert(input: File, output: File, workDir: File, profile: String = "kindle_oasis", onLine: (String) -> Unit = {}): Result {
         input.copyTo(File(workDir, input.name), overwrite = true)
         val script = """

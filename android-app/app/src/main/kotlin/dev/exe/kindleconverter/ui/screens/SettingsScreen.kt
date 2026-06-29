@@ -60,6 +60,7 @@ fun SettingsScreen(
     onSetDynamic: (Boolean) -> Unit,
     onSetPort: (Int) -> Unit,
     onSyncToKindle: () -> Unit,
+    onSetSyncTagsIntoTitle: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
     // MTP transfers stall if the screen sleeps mid-sync, so hold it awake while syncing.
@@ -144,6 +145,18 @@ fun SettingsScreen(
                 "Connect a Kindle with a USB-OTG cable, unlock it and allow file transfer, then sync your converted books straight onto it. Books removed here are removed from the Kindle on the next sync.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Show tags on the Kindle", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Adds a book's tags to the end of its title (e.g. \"Dune · scifi\") when syncing — the only way a Kindle shows tags. Your library here keeps the clean title.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Switch(checked = settings.syncTagsIntoTitle, onCheckedChange = onSetSyncTagsIntoTitle)
+            }
             Spacer(Modifier.height(10.dp))
             Button(onClick = onSyncToKindle, enabled = !syncing) {
                 if (syncing) {

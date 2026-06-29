@@ -143,6 +143,7 @@ private fun AppNav(vm: AppViewModel, onPickBooks: () -> Unit) {
                 onSetDynamic = { vm.setDynamicColor(it) },
                 onSetPort = { vm.setPort(it) },
                 onSyncToKindle = { vm.syncToKindle() },
+                onSetSyncTagsIntoTitle = { vm.setSyncTagsIntoTitle(it) },
                 onBack = { nav.popBackStack() },
             )
         }

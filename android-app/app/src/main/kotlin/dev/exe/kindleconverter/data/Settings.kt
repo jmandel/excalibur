@@ -19,6 +19,9 @@ data class AppSettings(
     /** Stable per-install id; namespaces this phone's books on a shared Kindle so two
      *  phones syncing to the same Kindle don't delete each other's content. */
     val deviceTag: String = "",
+    /** When syncing to a Kindle, append the book's tags to its title (e.g. "Dune · scifi")
+     *  so they're visible on-device. Off by default — it's deliberately a bit ugly. */
+    val syncTagsIntoTitle: Boolean = false,
 )
 
 private val Context.dataStore by preferencesDataStore("settings")
@@ -30,6 +33,7 @@ class SettingsStore(private val context: Context) {
         val dynamic = booleanPreferencesKey("dynamic_color")
         val port = intPreferencesKey("server_port")
         val deviceTag = stringPreferencesKey("device_tag")
+        val syncTagsIntoTitle = booleanPreferencesKey("sync_tags_into_title")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -39,6 +43,7 @@ class SettingsStore(private val context: Context) {
             dynamicColor = p[Keys.dynamic] ?: true,
             serverPort = p[Keys.port] ?: 8888,
             deviceTag = p[Keys.deviceTag] ?: "",
+            syncTagsIntoTitle = p[Keys.syncTagsIntoTitle] ?: false,
         )
     }
 
@@ -47,4 +52,5 @@ class SettingsStore(private val context: Context) {
     suspend fun setDynamicColor(on: Boolean) = context.dataStore.edit { it[Keys.dynamic] = on }
     suspend fun setPort(port: Int) = context.dataStore.edit { it[Keys.port] = port }
     suspend fun setDeviceTag(tag: String) = context.dataStore.edit { it[Keys.deviceTag] = tag }
+    suspend fun setSyncTagsIntoTitle(on: Boolean) = context.dataStore.edit { it[Keys.syncTagsIntoTitle] = on }
 }

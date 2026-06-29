@@ -15,6 +15,8 @@ import dev.exe.kindleconverter.service.ConverterService
 import dev.exe.kindleconverter.service.ServerBus
 import dev.exe.kindleconverter.usb.SyncOutcome
 import dev.exe.kindleconverter.usb.syncLibraryToKindle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -58,6 +60,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteMany(ids: Set<String>) = viewModelScope.launch { graph.repo.deleteMany(ids) }
     fun tagMany(ids: Set<String>, tag: String) = viewModelScope.launch { graph.repo.addTag(ids, tag) }
 
+    fun setSyncTagsIntoTitle(on: Boolean) = viewModelScope.launch { graph.settings.setSyncTagsIntoTitle(on) }
+
     fun setProfile(id: String) = viewModelScope.launch { graph.settings.setProfile(id) }
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch { graph.settings.setThemeMode(mode) }
     fun setDynamicColor(on: Boolean) = viewModelScope.launch { graph.settings.setDynamicColor(on) }
@@ -84,8 +88,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val device = settings.value.deviceTag.ifBlank {
             makeDeviceTag().also { graph.settings.setDeviceTag(it) }
         }
-        val wantById = graph.repo.ready().mapNotNull { b -> b.azw3Path?.let { b.id to File(it) } }.toMap()
+        val suffixTags = settings.value.syncTagsIntoTitle
+        // Build the id→file map off the main thread (retitling runs calibre).
+        val retitleDirs = mutableListOf<File>()
+        val wantById = withContext(Dispatchers.IO) {
+            val map = LinkedHashMap<String, File>()
+            for (b in graph.repo.ready()) {
+                val src = b.azw3Path?.let { File(it) } ?: continue
+                map[b.id] = if (suffixTags && b.tagSet.isNotEmpty()) {
+                    _syncStatus.value = "Adding tags to “${b.title}”…"
+                    val wd = graph.storage.workDir("retitle-${b.id}").also { retitleDirs += it }
+                    graph.runtime.retitle(src, "${b.title} · ${b.tagSet.joinToString(", ")}", wd) ?: src
+                } else src
+            }
+            map
+        }
         val outcome = syncLibraryToKindle(getApplication(), device, wantById) { line -> _syncStatus.value = line }
+        retitleDirs.forEach { runCatching { it.deleteRecursively() } } // reclaim retitle scratch
         _syncStatus.value = when (outcome) {
             SyncOutcome.NoDevice -> "No Kindle found. Connect it with a USB-OTG cable, unlock it, and allow file transfer."
             SyncOutcome.NoPermission -> "USB permission was denied."
