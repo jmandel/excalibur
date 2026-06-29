@@ -180,6 +180,8 @@ private fun AppNav(vm: AppViewModel, onPickBooks: () -> Unit, onPickDriveInbox: 
                 onSetPort = { vm.setPort(it) },
                 onChooseDriveInbox = onPickDriveInbox,
                 onClearDriveInbox = { vm.clearDriveInbox() },
+                onSetDrivePublicFolderUrl = { vm.setDrivePublicFolderUrl(it) },
+                onClearDrivePublicFolderUrl = { vm.clearDrivePublicFolderUrl() },
                 onSyncDriveInbox = { vm.syncDriveInboxNow() },
                 onSetDriveDailySyncOnCharger = { vm.setDriveDailySyncOnCharger(it) },
                 onSyncToKindle = { vm.syncToKindle() },

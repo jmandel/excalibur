@@ -28,6 +28,8 @@ data class AppSettings(
     /** Persisted SAF tree Uri for a user-selected Drive-backed inbox folder. */
     val driveInboxUri: String = "",
     val driveInboxName: String = "",
+    /** Public Google Drive folder URL, used without OAuth/API keys. */
+    val drivePublicFolderUrl: String = "",
     /** Daily background Drive sync is constrained to charging + healthy device state. */
     val driveDailySyncOnCharger: Boolean = false,
     val driveImportedDocumentKeys: Set<String> = emptySet(),
@@ -47,6 +49,7 @@ class SettingsStore(private val context: Context) {
         val autoSyncKindleOnConnect = booleanPreferencesKey("auto_sync_kindle_on_connect")
         val driveInboxUri = stringPreferencesKey("drive_inbox_uri")
         val driveInboxName = stringPreferencesKey("drive_inbox_name")
+        val drivePublicFolderUrl = stringPreferencesKey("drive_public_folder_url")
         val driveDailySyncOnCharger = booleanPreferencesKey("drive_daily_sync_on_charger")
         val driveImportedDocumentKeys = stringSetPreferencesKey("drive_imported_document_keys")
         val driveLastSyncSummary = stringPreferencesKey("drive_last_sync_summary")
@@ -63,6 +66,7 @@ class SettingsStore(private val context: Context) {
             autoSyncKindleOnConnect = p[Keys.autoSyncKindleOnConnect] ?: false,
             driveInboxUri = p[Keys.driveInboxUri] ?: "",
             driveInboxName = p[Keys.driveInboxName] ?: "",
+            drivePublicFolderUrl = p[Keys.drivePublicFolderUrl] ?: "",
             driveDailySyncOnCharger = p[Keys.driveDailySyncOnCharger] ?: false,
             driveImportedDocumentKeys = p[Keys.driveImportedDocumentKeys] ?: emptySet(),
             driveLastSyncSummary = p[Keys.driveLastSyncSummary] ?: "",
@@ -77,17 +81,39 @@ class SettingsStore(private val context: Context) {
     suspend fun setSyncTagsIntoTitle(on: Boolean) = context.dataStore.edit { it[Keys.syncTagsIntoTitle] = on }
     suspend fun setAutoSyncKindleOnConnect(on: Boolean) = context.dataStore.edit { it[Keys.autoSyncKindleOnConnect] = on }
     suspend fun setDriveInbox(uri: String, name: String) = context.dataStore.edit {
+        val publicLinkActive = !it[Keys.drivePublicFolderUrl].isNullOrBlank()
         it[Keys.driveInboxUri] = uri
         it[Keys.driveInboxName] = name
-        it[Keys.driveImportedDocumentKeys] = emptySet()
+        if (!publicLinkActive) it[Keys.driveImportedDocumentKeys] = emptySet()
         it[Keys.driveLastSyncSummary] = "Drive inbox selected. Run Sync now to import books."
     }
+    suspend fun setDrivePublicFolderUrl(url: String) = context.dataStore.edit {
+        val clean = url.trim()
+        val changed = clean != (it[Keys.drivePublicFolderUrl] ?: "")
+        it[Keys.drivePublicFolderUrl] = clean
+        if (changed) it[Keys.driveImportedDocumentKeys] = emptySet()
+        it[Keys.driveLastSyncSummary] = "Public Drive folder link saved. Run Sync now to import books."
+    }
+    suspend fun clearDrivePublicFolderUrl() = context.dataStore.edit {
+        val pickerStillConfigured = !it[Keys.driveInboxUri].isNullOrBlank()
+        it.remove(Keys.drivePublicFolderUrl)
+        if (!pickerStillConfigured) it[Keys.driveDailySyncOnCharger] = false
+        it.remove(Keys.driveImportedDocumentKeys)
+        it[Keys.driveLastSyncSummary] = "Public Drive folder link cleared."
+    }
     suspend fun clearDriveInbox() = context.dataStore.edit {
+        val publicLinkActive = !it[Keys.drivePublicFolderUrl].isNullOrBlank()
         it.remove(Keys.driveInboxUri)
         it.remove(Keys.driveInboxName)
-        it[Keys.driveDailySyncOnCharger] = false
-        it.remove(Keys.driveImportedDocumentKeys)
-        it[Keys.driveLastSyncSummary] = "Drive inbox cleared."
+        if (!publicLinkActive) {
+            it[Keys.driveDailySyncOnCharger] = false
+            it.remove(Keys.driveImportedDocumentKeys)
+        }
+        it[Keys.driveLastSyncSummary] = if (publicLinkActive) {
+            "Android Drive folder cleared. Public link remains saved."
+        } else {
+            "Drive inbox cleared."
+        }
     }
     suspend fun setDriveDailySyncOnCharger(on: Boolean) = context.dataStore.edit { it[Keys.driveDailySyncOnCharger] = on }
     suspend fun addDriveImportedDocumentKeys(keys: Collection<String>) {
