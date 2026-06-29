@@ -61,6 +61,7 @@ fun SettingsScreen(
     onSetPort: (Int) -> Unit,
     onSyncToKindle: () -> Unit,
     onSetSyncTagsIntoTitle: (Boolean) -> Unit,
+    onSetAutoSyncKindleOnConnect: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
     // MTP transfers stall if the screen sleeps mid-sync, so hold it awake while syncing.
@@ -156,6 +157,17 @@ fun SettingsScreen(
                 }
                 Spacer(Modifier.width(8.dp))
                 Switch(checked = settings.syncTagsIntoTitle, onCheckedChange = onSetSyncTagsIntoTitle)
+            }
+            Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Auto-sync when connected", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "When Android opens Excalibur for an attached Kindle, start the same scoped USB sync automatically.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Switch(checked = settings.autoSyncKindleOnConnect, onCheckedChange = onSetAutoSyncKindleOnConnect)
             }
             Spacer(Modifier.height(10.dp))
             Button(onClick = onSyncToKindle, enabled = !syncing) {

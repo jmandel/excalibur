@@ -17,6 +17,7 @@ import com.joshuamandel.excalibur.usb.SyncOutcome
 import com.joshuamandel.excalibur.usb.syncLibraryToKindle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -65,6 +66,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun removeTag(id: String, tag: String) = viewModelScope.launch { graph.repo.removeTag(id, tag) }
 
     fun setSyncTagsIntoTitle(on: Boolean) = viewModelScope.launch { graph.settings.setSyncTagsIntoTitle(on) }
+    fun setAutoSyncKindleOnConnect(on: Boolean) = viewModelScope.launch { graph.settings.setAutoSyncKindleOnConnect(on) }
 
     fun setProfile(id: String) = viewModelScope.launch { graph.settings.setProfile(id) }
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch { graph.settings.setThemeMode(mode) }
@@ -85,14 +87,33 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _syncing = MutableStateFlow(false)
     val syncing = _syncing.asStateFlow()
 
-    fun syncToKindle() = viewModelScope.launch {
-        if (_syncing.value) return@launch
+    fun syncToKindle() = viewModelScope.launch { runKindleSync(settings.value, automatic = false) }
+
+    fun syncToKindleIfAutoEnabled() = viewModelScope.launch {
+        val snapshot = graph.settings.settings.first()
+        if (!snapshot.autoSyncKindleOnConnect) {
+            _syncStatus.value = "Kindle connected. Auto-sync is off."
+            return@launch
+        }
+        runKindleSync(snapshot, automatic = true)
+    }
+
+    private suspend fun runKindleSync(snapshot: AppSettings, automatic: Boolean) {
+        if (_syncing.value) return
         _syncing.value = true
-        _syncStatus.value = "Looking for a connected Kindle…"
-        val device = settings.value.deviceTag.ifBlank {
+        _syncStatus.value = if (automatic) "Kindle connected. Auto-sync starting..." else "Looking for a connected Kindle..."
+        try {
+            syncToKindleNow(snapshot)
+        } finally {
+            _syncing.value = false
+        }
+    }
+
+    private suspend fun syncToKindleNow(snapshot: AppSettings) {
+        val device = snapshot.deviceTag.ifBlank {
             makeDeviceTag().also { graph.settings.setDeviceTag(it) }
         }
-        val suffixTags = settings.value.syncTagsIntoTitle
+        val suffixTags = snapshot.syncTagsIntoTitle
         // Build the id→file map off the main thread (retitling runs calibre).
         val retitleDirs = mutableListOf<File>()
         val wantById = withContext(Dispatchers.IO) {
@@ -117,7 +138,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             is SyncOutcome.Failed -> "Sync failed: ${outcome.message}"
             is SyncOutcome.Done -> outcome.result.let { "Done — ${it.pushed} added, ${it.deleted} removed, ${it.skipped} already there." }
         }
-        _syncing.value = false
     }
 
     /**

@@ -22,6 +22,8 @@ data class AppSettings(
     /** When syncing to a Kindle, append the book's tags to its title (e.g. "Dune · scifi")
      *  so they're visible on-device. Off by default — it's deliberately a bit ugly. */
     val syncTagsIntoTitle: Boolean = false,
+    /** When Android launches us for a Kindle USB attach event, start the MTP sync automatically. */
+    val autoSyncKindleOnConnect: Boolean = false,
 )
 
 private val Context.dataStore by preferencesDataStore("settings")
@@ -34,6 +36,7 @@ class SettingsStore(private val context: Context) {
         val port = intPreferencesKey("server_port")
         val deviceTag = stringPreferencesKey("device_tag")
         val syncTagsIntoTitle = booleanPreferencesKey("sync_tags_into_title")
+        val autoSyncKindleOnConnect = booleanPreferencesKey("auto_sync_kindle_on_connect")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -44,6 +47,7 @@ class SettingsStore(private val context: Context) {
             serverPort = p[Keys.port] ?: 8888,
             deviceTag = p[Keys.deviceTag] ?: "",
             syncTagsIntoTitle = p[Keys.syncTagsIntoTitle] ?: false,
+            autoSyncKindleOnConnect = p[Keys.autoSyncKindleOnConnect] ?: false,
         )
     }
 
@@ -53,4 +57,5 @@ class SettingsStore(private val context: Context) {
     suspend fun setPort(port: Int) = context.dataStore.edit { it[Keys.port] = port }
     suspend fun setDeviceTag(tag: String) = context.dataStore.edit { it[Keys.deviceTag] = tag }
     suspend fun setSyncTagsIntoTitle(on: Boolean) = context.dataStore.edit { it[Keys.syncTagsIntoTitle] = on }
+    suspend fun setAutoSyncKindleOnConnect(on: Boolean) = context.dataStore.edit { it[Keys.autoSyncKindleOnConnect] = on }
 }

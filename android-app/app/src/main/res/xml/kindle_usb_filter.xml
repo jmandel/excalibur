@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Amazon/Lab126 USB vendor id 0x1949. Product ids vary across Kindle models. -->
+    <usb-device vendor-id="6473" />
+</resources>

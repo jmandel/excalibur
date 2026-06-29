@@ -2,6 +2,7 @@ package com.joshuamandel.excalibur
 
 import android.Manifest
 import android.content.Intent
+import android.hardware.usb.UsbManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -70,6 +71,10 @@ class MainActivity : ComponentActivity() {
             Intent.ACTION_SEND -> listOfNotNull(IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java))
             Intent.ACTION_SEND_MULTIPLE ->
                 intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)?.filterNotNull().orEmpty()
+            UsbManager.ACTION_USB_DEVICE_ATTACHED -> {
+                vm.syncToKindleIfAutoEnabled()
+                emptyList()
+            }
             else -> emptyList()
         }
         if (uris.isNotEmpty()) vm.importAndConvert(uris)
@@ -146,6 +151,7 @@ private fun AppNav(vm: AppViewModel, onPickBooks: () -> Unit) {
                 onSetPort = { vm.setPort(it) },
                 onSyncToKindle = { vm.syncToKindle() },
                 onSetSyncTagsIntoTitle = { vm.setSyncTagsIntoTitle(it) },
+                onSetAutoSyncKindleOnConnect = { vm.setAutoSyncKindleOnConnect(it) },
                 onBack = { nav.popBackStack() },
             )
         }

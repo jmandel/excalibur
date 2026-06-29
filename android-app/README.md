@@ -6,6 +6,8 @@ Native Android Kindle library manager. The preferred runtime path is now native 
 - Local converted AZW3 file storage.
 - A tiny built-in HTTP server for the Kindle Experimental Browser.
 - LAN/hotspot IP discovery and URL display.
+- Experimental USB-OTG/MTP sync to an attached Kindle, with optional auto-sync
+  when Android launches Excalibur for a Kindle USB attach event.
 
 ## UX notes
 
@@ -14,6 +16,10 @@ Native Android Kindle library manager. The preferred runtime path is now native 
 3. After device confirmation, imported books are queued automatically and conversion status appears in the page-level log.
 4. Keep the Android app open. On the Kindle, open one of the displayed `http://<ip>:<port>/` URLs.
 5. The Kindle page is deliberately plain: latest AZW3 downloads are first, with one search box for title/author/tag filtering.
+6. For USB sync, connect a Kindle with a USB-OTG cable, unlock it, allow file
+   transfer, then use Settings -> Sync to Kindle. "Auto-sync when connected" is
+   opt-in and only starts after Android opens Excalibur for a matching Kindle
+   attach event.
 
 ## Hotspot / hostname ergonomics
 

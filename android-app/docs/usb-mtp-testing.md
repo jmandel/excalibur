@@ -50,3 +50,24 @@ gadget over OTG (most write-ups host from a PC). Budget time for that.
 Only a physical 2024-era (MTP) Kindle settles: that a stock Android phone opens an MTP
 session to it at all, that `documents/Excalibur/` is indexed, and whether Amazon's reported
 removal of USB-sideloaded content after a Wi-Fi reconnect would undo a sync.
+
+## Auto-launch / auto-sync
+
+`MainActivity` registers `android.hardware.usb.action.USB_DEVICE_ATTACHED` with
+`res/xml/kindle_usb_filter.xml`, currently matching Amazon/Lab126 vendor id `0x1949`
+(decimal `6473`) and no product id because product ids vary by Kindle model. Android owns
+the chooser/default-app prompt for this attach event.
+
+The attach event only launches Excalibur. It does not sync unless the user has enabled
+Settings -> "Auto-sync when connected". When disabled, the app records "Kindle connected.
+Auto-sync is off." and leaves the manual "Sync to Kindle" button as the active path.
+
+To smoke-test the intent branch without hardware:
+
+```
+adb shell am start -n com.joshuamandel.excalibur/.MainActivity \
+  -a android.hardware.usb.action.USB_DEVICE_ATTACHED
+```
+
+That does not grant USB permission or create an attached device; it only proves the Activity
+routes the attach action into the guarded auto-sync path.
