@@ -59,6 +59,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun delete(id: String) = viewModelScope.launch { graph.repo.delete(id) }
     fun deleteMany(ids: Set<String>) = viewModelScope.launch { graph.repo.deleteMany(ids) }
     fun tagMany(ids: Set<String>, tag: String) = viewModelScope.launch { graph.repo.addTag(ids, tag) }
+    fun addTag(id: String, tag: String) = viewModelScope.launch { graph.repo.addTag(listOf(id), tag) }
+    fun removeTag(id: String, tag: String) = viewModelScope.launch { graph.repo.removeTag(id, tag) }
 
     fun setSyncTagsIntoTitle(on: Boolean) = viewModelScope.launch { graph.settings.setSyncTagsIntoTitle(on) }
 

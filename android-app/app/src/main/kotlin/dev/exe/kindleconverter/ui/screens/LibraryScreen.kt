@@ -14,6 +14,8 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -89,6 +91,8 @@ fun LibraryScreen(
     onDelete: (String) -> Unit,
     onDeleteMany: (Set<String>) -> Unit,
     onTagMany: (Set<String>, String) -> Unit,
+    onAddTag: (String, String) -> Unit,
+    onRemoveTag: (String, String) -> Unit,
     onStartServer: () -> Unit,
     onStopServer: () -> Unit,
     onSetPort: (Int) -> Unit,
@@ -119,6 +123,19 @@ fun LibraryScreen(
             existing = books.flatMap { it.tagSet }.distinct().sorted(),
             onDismiss = { showTagDialog = false },
             onApply = { tag -> onTagMany(selected, tag); showTagDialog = false; clearSelection() },
+        )
+    }
+
+    // Per-book tag editor. Track the id (not the Book) so the chips stay live as the
+    // library flow re-emits after each add/remove.
+    var editTagsForId by remember { mutableStateOf<String?>(null) }
+    books.firstOrNull { it.id == editTagsForId }?.let { editing ->
+        TagEditorDialog(
+            book = editing,
+            allTags = books.flatMap { it.tagSet }.distinct().sorted(),
+            onAdd = { onAddTag(editing.id, it) },
+            onRemove = { onRemoveTag(editing.id, it) },
+            onDismiss = { editTagsForId = null },
         )
     }
 
@@ -226,6 +243,7 @@ fun LibraryScreen(
                             onSave = { saveBook(book) },
                             onShowQr = { downloadUrl(book)?.let { qrUrl = it } },
                             onCopyLink = { downloadUrl(book)?.let { clipboard.setText(AnnotatedString(it)) } },
+                            onEditTags = { editTagsForId = book.id },
                         )
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     }
@@ -307,6 +325,7 @@ private fun BookRow(
     onSave: () -> Unit,
     onShowQr: () -> Unit,
     onCopyLink: () -> Unit,
+    onEditTags: () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
     var menu by remember { mutableStateOf(false) }
@@ -342,7 +361,7 @@ private fun BookRow(
             }
             if (book.tagSet.isNotEmpty()) {
                 Spacer(Modifier.height(6.dp))
-                TagRow(book.tagSet)
+                TagRow(book.tagSet, if (selectionMode) Modifier else Modifier.clickable(onClick = onEditTags))
             }
         }
         if (!selectionMode) {
@@ -367,6 +386,11 @@ private fun BookRow(
                         }
                         HorizontalDivider()
                     }
+                    DropdownMenuItem(
+                        text = { Text("Edit tags…") },
+                        leadingIcon = { Icon(LocalIcons.LocalOffer, null, modifier = Modifier.size(20.dp)) },
+                        onClick = { menu = false; onEditTags() },
+                    )
                     DropdownMenuItem(text = { Text("Convert again") }, onClick = { menu = false; onReconvert() })
                     DropdownMenuItem(text = { Text("Delete") }, onClick = { menu = false; onDelete() })
                 }
@@ -377,9 +401,9 @@ private fun BookRow(
 
 /** Up to three tag pills, then a "+N" overflow marker. */
 @Composable
-private fun TagRow(tags: List<String>) {
+private fun TagRow(tags: List<String>, modifier: Modifier = Modifier) {
     val cs = MaterialTheme.colorScheme
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         tags.take(3).forEach { tag ->
             Text(
                 tag,
@@ -441,6 +465,92 @@ private fun TagDialog(
         confirmButton = { TextButton(onClick = { if (text.isNotBlank()) onApply(text.trim()) }, enabled = text.isNotBlank()) { Text("Add") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
+}
+
+/** Edit one book's tags: remove current ones (× on each chip), add a new one, or tap a suggestion. */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun TagEditorDialog(
+    book: Book,
+    allTags: List<String>,
+    onAdd: (String) -> Unit,
+    onRemove: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by remember { mutableStateOf("") }
+    val current = book.tagSet
+    val suggestions = allTags.filter { it !in current }
+    fun commit() { val t = text.trim(); if (t.isNotEmpty()) { onAdd(t); text = "" } }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Tags") },
+        text = {
+            Column {
+                Text(
+                    book.title, style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(12.dp))
+                if (current.isEmpty()) {
+                    Text("No tags yet.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        current.forEach { tag -> RemovableTagChip(tag) { onRemove(tag) } }
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    singleLine = true,
+                    label = { Text("Add a tag") },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { commit() }),
+                    trailingIcon = { TextButton(onClick = { commit() }, enabled = text.isNotBlank()) { Text("Add") } },
+                )
+                if (suggestions.isNotEmpty()) {
+                    Spacer(Modifier.height(12.dp))
+                    Text("Suggestions", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(8.dp))
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        suggestions.take(12).forEach { tag -> AddableTagChip(tag) { onAdd(tag) } }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
+    )
+}
+
+@Composable
+private fun RemovableTagChip(tag: String, onRemove: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(cs.secondaryContainer)
+            .padding(start = 12.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+    ) {
+        Text(tag, style = MaterialTheme.typography.labelLarge, color = cs.onSecondaryContainer)
+        Spacer(Modifier.width(4.dp))
+        Icon(
+            Icons.Rounded.Close, "Remove $tag", tint = cs.onSecondaryContainer,
+            modifier = Modifier.size(18.dp).clip(CircleShape).clickable(onClick = onRemove).padding(1.dp),
+        )
+    }
+}
+
+@Composable
+private fun AddableTagChip(tag: String, onAdd: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(cs.surfaceVariant)
+            .clickable(onClick = onAdd).padding(horizontal = 12.dp, vertical = 6.dp),
+    ) {
+        Icon(Icons.Rounded.Add, null, tint = cs.onSurfaceVariant, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(4.dp))
+        Text(tag, style = MaterialTheme.typography.labelLarge, color = cs.onSurfaceVariant)
+    }
 }
 
 @Composable
