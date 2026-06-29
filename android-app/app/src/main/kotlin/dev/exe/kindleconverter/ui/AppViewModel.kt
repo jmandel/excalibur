@@ -47,7 +47,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val profile = settings.value.lastProfile
             val ids = uris.mapNotNull { runCatching { graph.repo.importAndQueue(it, profile) }.getOrNull() }
             ConverterService.startAndConvert(getApplication())
-            ids.firstOrNull()?.let { openBook.emit(it) }
+            // Open the detail page only for a single import; for a batch, stay on the
+            // library so all of them can be watched converting at once.
+            if (ids.size == 1) openBook.emit(ids.first())
         }
     }
 
