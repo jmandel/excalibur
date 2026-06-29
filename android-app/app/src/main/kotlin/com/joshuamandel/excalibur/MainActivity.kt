@@ -34,6 +34,9 @@ class MainActivity : ComponentActivity() {
     private val pickBooks = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isNotEmpty()) vm.importAndConvert(uris)
     }
+    private val pickDriveInbox = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) vm.setDriveInbox(uri)
+    }
     private val requestNotifications =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
@@ -54,7 +57,11 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.DARK -> true
             }
             KindleConverterTheme(darkTheme = dark, dynamicColor = settings.dynamicColor) {
-                AppNav(vm) { pickBooks.launch(EBOOK_MIME_TYPES) }
+                AppNav(
+                    vm = vm,
+                    onPickBooks = { pickBooks.launch(EBOOK_MIME_TYPES) },
+                    onPickDriveInbox = { pickDriveInbox.launch(null) },
+                )
             }
         }
     }
@@ -91,7 +98,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun AppNav(vm: AppViewModel, onPickBooks: () -> Unit) {
+private fun AppNav(vm: AppViewModel, onPickBooks: () -> Unit, onPickDriveInbox: () -> Unit) {
     val nav = rememberNavController()
     val books by vm.books.collectAsStateWithLifecycle()
     val server by vm.server.collectAsState()
@@ -140,15 +147,23 @@ private fun AppNav(vm: AppViewModel, onPickBooks: () -> Unit) {
         composable("settings") {
             val syncStatus by vm.syncStatus.collectAsState()
             val syncing by vm.syncing.collectAsState()
+            val driveSyncStatus by vm.driveSyncStatus.collectAsState()
+            val driveSyncing by vm.driveSyncing.collectAsState()
             SettingsScreen(
                 settings = settings,
                 serverRunningPort = if (server.running) server.port else null,
                 syncStatus = syncStatus,
                 syncing = syncing,
+                driveSyncStatus = driveSyncStatus,
+                driveSyncing = driveSyncing,
                 onSetProfile = { vm.setProfile(it) },
                 onSetTheme = { vm.setThemeMode(it) },
                 onSetDynamic = { vm.setDynamicColor(it) },
                 onSetPort = { vm.setPort(it) },
+                onChooseDriveInbox = onPickDriveInbox,
+                onClearDriveInbox = { vm.clearDriveInbox() },
+                onSyncDriveInbox = { vm.syncDriveInboxNow() },
+                onSetDriveDailySyncOnCharger = { vm.setDriveDailySyncOnCharger(it) },
                 onSyncToKindle = { vm.syncToKindle() },
                 onSetSyncTagsIntoTitle = { vm.setSyncTagsIntoTitle(it) },
                 onSetAutoSyncKindleOnConnect = { vm.setAutoSyncKindleOnConnect(it) },

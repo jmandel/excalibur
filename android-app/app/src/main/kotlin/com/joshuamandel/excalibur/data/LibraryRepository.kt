@@ -9,6 +9,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
 
+data class ImportResult(val id: String, val created: Boolean)
+
 class LibraryRepository(
     private val context: Context,
     private val dao: BookDao,
@@ -20,8 +22,14 @@ class LibraryRepository(
     suspend fun ready() = dao.ready()
     suspend fun nextPending() = dao.nextPending()
 
-    /** Copy a picked/shared Uri into the managed library and queue it. Returns the new id. */
-    suspend fun importAndQueue(uri: Uri, profile: String): String = withContext(Dispatchers.IO) {
+    /** Copy a picked/shared Uri into the managed library and queue it. Returns the book id. */
+    suspend fun importAndQueue(uri: Uri, profile: String): String = importAndQueueDetailed(uri, profile).id
+
+    /**
+     * Copy a Uri into the managed library. AZW3 inputs are already Kindle-ready and are marked
+     * READY immediately; other supported inputs are queued for calibre conversion.
+     */
+    suspend fun importAndQueueDetailed(uri: Uri, profile: String): ImportResult = withContext(Dispatchers.IO) {
         val display = queryName(uri) ?: "book"
         val ext = display.substringAfterLast('.', "epub").lowercase().ifBlank { "epub" }
         val id = UUID.randomUUID().toString()
@@ -35,21 +43,32 @@ class LibraryRepository(
         val hash = sha256(dest)
         dao.findByHash(hash)?.let { existing ->
             storage.purge(id)
-            return@withContext existing.id
+            return@withContext ImportResult(existing.id, created = false)
         }
         // Prefer the book's own metadata over the filename so the library reads nicely.
         val meta = if (ext == "epub") readEpubMeta(dest) else null
         val fallback = display.substringBeforeLast('.').replace('_', ' ').replace('-', ' ').trim().ifBlank { "Untitled" }
         val now = System.currentTimeMillis()
+        val converted = storage.converted(id)
+        val readyAzw3 = ext == "azw3"
+        if (readyAzw3) dest.copyTo(converted, overwrite = true)
         dao.upsert(
             Book(
                 id = id, title = meta?.first ?: fallback, author = meta?.second.orEmpty(),
                 originalName = display, ext = ext,
-                originalSize = dest.length(), status = BookStatus.QUEUED, profile = profile,
-                stage = Stage.IMPORT, createdAt = now, contentHash = hash,
+                originalSize = dest.length(),
+                status = if (readyAzw3) BookStatus.READY else BookStatus.QUEUED,
+                profile = profile,
+                azw3Path = if (readyAzw3) converted.absolutePath else null,
+                azw3Size = if (readyAzw3) converted.length() else 0,
+                stage = if (readyAzw3) Stage.DONE else Stage.IMPORT,
+                stageLabel = if (readyAzw3) "Ready" else "",
+                createdAt = now,
+                convertedAt = if (readyAzw3) now else 0,
+                contentHash = hash,
             )
         )
-        id
+        ImportResult(id, created = true)
     }
 
     /** Best-effort EPUB title/author from the OPF package document. Null on any failure. */

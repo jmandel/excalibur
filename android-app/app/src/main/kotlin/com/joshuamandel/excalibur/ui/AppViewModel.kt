@@ -2,6 +2,7 @@ package com.joshuamandel.excalibur.ui
 
 import android.annotation.SuppressLint
 import android.app.Application
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -11,6 +12,8 @@ import com.joshuamandel.excalibur.AppGraph
 import com.joshuamandel.excalibur.data.AppSettings
 import com.joshuamandel.excalibur.data.Book
 import com.joshuamandel.excalibur.data.ThemeMode
+import com.joshuamandel.excalibur.drive.DriveInboxSync
+import com.joshuamandel.excalibur.drive.DriveInboxWork
 import com.joshuamandel.excalibur.service.ConverterService
 import com.joshuamandel.excalibur.service.ServerBus
 import com.joshuamandel.excalibur.usb.SyncOutcome
@@ -35,6 +38,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppSettings())
     val active = graph.conversion.active
     val server = ServerBus.state
+
+    init {
+        viewModelScope.launch {
+            val snapshot = graph.settings.settings.first()
+            DriveInboxWork.configure(getApplication(), snapshot.driveDailySyncOnCharger && snapshot.driveInboxUri.isNotBlank())
+        }
+    }
 
     /** Emits a book id to navigate to (after an import). */
     val openBook = MutableSharedFlow<String>(replay = 1)
@@ -86,6 +96,59 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val syncStatus = _syncStatus.asStateFlow()
     private val _syncing = MutableStateFlow(false)
     val syncing = _syncing.asStateFlow()
+
+    // --- Drive inbox sync ---
+    private val _driveSyncStatus = MutableStateFlow<String?>(null)
+    val driveSyncStatus = _driveSyncStatus.asStateFlow()
+    private val _driveSyncing = MutableStateFlow(false)
+    val driveSyncing = _driveSyncing.asStateFlow()
+
+    fun setDriveInbox(uri: Uri) = viewModelScope.launch {
+        val app = getApplication<Application>()
+        runCatching { app.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        val name = DriveInboxSync.folderName(app, uri)
+        graph.settings.setDriveInbox(uri.toString(), name)
+        _driveSyncStatus.value = "Drive inbox selected: $name"
+        DriveInboxWork.configure(app, settings.value.driveDailySyncOnCharger)
+    }
+
+    fun clearDriveInbox() = viewModelScope.launch {
+        val app = getApplication<Application>()
+        settings.value.driveInboxUri.takeIf { it.isNotBlank() }?.let {
+            runCatching { app.contentResolver.releasePersistableUriPermission(Uri.parse(it), Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        }
+        graph.settings.clearDriveInbox()
+        DriveInboxWork.configure(app, enabled = false)
+        _driveSyncStatus.value = "Drive inbox cleared."
+    }
+
+    fun setDriveDailySyncOnCharger(on: Boolean) = viewModelScope.launch {
+        val hasFolder = settings.value.driveInboxUri.isNotBlank()
+        if (on && !hasFolder) {
+            _driveSyncStatus.value = "Choose a Drive inbox folder first."
+            return@launch
+        }
+        graph.settings.setDriveDailySyncOnCharger(on)
+        DriveInboxWork.configure(getApplication(), enabled = on && hasFolder)
+        _driveSyncStatus.value = if (on) "Daily Drive sync will run while charging." else "Daily Drive sync is off."
+    }
+
+    fun syncDriveInboxNow() = viewModelScope.launch {
+        if (_driveSyncing.value) return@launch
+        if (settings.value.driveInboxUri.isBlank()) {
+            _driveSyncStatus.value = "Choose a Drive inbox folder first."
+            return@launch
+        }
+        _driveSyncing.value = true
+        _driveSyncStatus.value = "Scanning Drive inbox..."
+        try {
+            val result = DriveInboxSync.sync(getApplication(), convertQueued = false) { _driveSyncStatus.value = it }
+            _driveSyncStatus.value = result.summary()
+            if (result.changed) ConverterService.startAndConvert(getApplication())
+        } finally {
+            _driveSyncing.value = false
+        }
+    }
 
     fun syncToKindle() = viewModelScope.launch { runKindleSync(settings.value, automatic = false) }
 

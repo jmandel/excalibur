@@ -55,17 +55,23 @@ fun SettingsScreen(
     serverRunningPort: Int?,
     syncStatus: String?,
     syncing: Boolean,
+    driveSyncStatus: String?,
+    driveSyncing: Boolean,
     onSetProfile: (String) -> Unit,
     onSetTheme: (ThemeMode) -> Unit,
     onSetDynamic: (Boolean) -> Unit,
     onSetPort: (Int) -> Unit,
+    onChooseDriveInbox: () -> Unit,
+    onClearDriveInbox: () -> Unit,
+    onSyncDriveInbox: () -> Unit,
+    onSetDriveDailySyncOnCharger: (Boolean) -> Unit,
     onSyncToKindle: () -> Unit,
     onSetSyncTagsIntoTitle: (Boolean) -> Unit,
     onSetAutoSyncKindleOnConnect: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
     // MTP transfers stall if the screen sleeps mid-sync, so hold it awake while syncing.
-    KeepScreenOn(syncing)
+    KeepScreenOn(syncing || driveSyncing)
 
     var showPortDialog by remember { mutableStateOf(false) }
     if (showPortDialog) {
@@ -139,6 +145,51 @@ fun SettingsScreen(
                 "The Kindle connects to this device's address on this port.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            Divider()
+            SectionLabel("Drive inbox")
+            Text(
+                "Choose a Google Drive-backed folder. Excalibur imports new ebook files from it into this phone's library.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                if (settings.driveInboxName.isBlank()) "No folder selected" else "Folder: ${settings.driveInboxName}",
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = onChooseDriveInbox) { Text(if (settings.driveInboxUri.isBlank()) "Choose folder" else "Change folder") }
+                Spacer(Modifier.width(8.dp))
+                TextButton(onClick = onClearDriveInbox, enabled = settings.driveInboxUri.isNotBlank()) { Text("Clear") }
+            }
+            Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Daily sync while charging", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Runs once a day only when network is available, the phone is charging, and battery/storage are not low.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Switch(
+                    checked = settings.driveDailySyncOnCharger,
+                    onCheckedChange = onSetDriveDailySyncOnCharger,
+                    enabled = settings.driveInboxUri.isNotBlank(),
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = onSyncDriveInbox, enabled = !driveSyncing && settings.driveInboxUri.isNotBlank()) {
+                if (driveSyncing) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                    Spacer(Modifier.width(10.dp))
+                }
+                Text(if (driveSyncing) "Syncing..." else "Sync Drive now")
+            }
+            (driveSyncStatus ?: settings.driveLastSyncSummary.takeIf { it.isNotBlank() })?.let {
+                Spacer(Modifier.height(10.dp))
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
 
             Divider()
             SectionLabel("Kindle over USB (experimental)")
