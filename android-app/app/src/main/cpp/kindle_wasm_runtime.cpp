@@ -222,7 +222,7 @@ static jstring result_json(JNIEnv *env, const RunResult &r) {
     ss << "{\"exitCode\":" << r.code << ",\"compileMs\":" << r.compile_ms << ",\"runMs\":" << r.run_ms << ",\"usedPrecompiled\":" << (r.used_precompiled ? "true" : "false") << ",\"stdout\":\"" << esc(r.stdout_text) << "\",\"stderr\":\"" << esc(r.stderr_text) << "\",\"error\":\"" << esc(r.error) << "\"}";
     return env->NewStringUTF(ss.str().c_str());
 }
-extern "C" JNIEXPORT jstring JNICALL Java_dev_exe_kindleconverter_wasmtime_WasmtimeRuntime_nativeRunPython(JNIEnv *env, jobject thiz, jstring wasm, jstring cwasm, jstring root, jstring work, jboolean prefer) {
+extern "C" JNIEXPORT jstring JNICALL Java_com_joshuamandel_excalibur_wasmtime_WasmtimeRuntime_nativeRunPython(JNIEnv *env, jobject thiz, jstring wasm, jstring cwasm, jstring root, jstring work, jboolean prefer) {
     JavaVM *vm = nullptr;
     env->GetJavaVM(&vm);
     jclass cls = env->GetObjectClass(thiz);
@@ -237,7 +237,7 @@ extern "C" JNIEXPORT jstring JNICALL Java_dev_exe_kindleconverter_wasmtime_Wasmt
 
 // Compile (or deserialize) the module ahead of any conversion, so the first one
 // doesn't pay it. Returns true once the module is resident. Safe to call repeatedly.
-extern "C" JNIEXPORT jboolean JNICALL Java_dev_exe_kindleconverter_wasmtime_WasmtimeRuntime_nativePrewarm(JNIEnv *env, jobject, jstring wasm, jstring cwasm, jboolean prefer) {
+extern "C" JNIEXPORT jboolean JNICALL Java_com_joshuamandel_excalibur_wasmtime_WasmtimeRuntime_nativePrewarm(JNIEnv *env, jobject, jstring wasm, jstring cwasm, jboolean prefer) {
     auto t0 = std::chrono::steady_clock::now();
     RunResult r;
     bool ok = ensure_module(jstr(env, wasm), jstr(env, cwasm), prefer == JNI_TRUE, r);
