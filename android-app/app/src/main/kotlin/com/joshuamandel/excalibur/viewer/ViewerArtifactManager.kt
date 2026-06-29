@@ -38,7 +38,10 @@ class ViewerArtifactManager(
             runCatching { workDir.deleteRecursively() }
 
             if (!result.ok) {
-                val message = result.error.ifBlank { result.stderr.takeLast(800) }.ifBlank { "Preview generation failed." }
+                val message = result.stderr.ifBlank { result.stdout }
+                    .ifBlank { result.error }
+                    .takeLast(1200)
+                    .ifBlank { "Preview generation failed." }
                 throw IllegalStateException(message)
             }
 

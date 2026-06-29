@@ -199,6 +199,9 @@ def _azw3_output_plugin():
 def _mobi_output_plugin():
     from calibre.ebooks.conversion.plugins.mobi_output import MOBIOutput
     return MOBIOutput(None)
+def _htmlz_output_plugin():
+    from calibre.ebooks.conversion.plugins.htmlz_output import HTMLZOutput
+    return HTMLZOutput(None)
 def plugin_for_input_format(fmt):
     fmt = fmt.lower()
     if fmt in {'epub', 'kepub'}:
@@ -212,11 +215,13 @@ def plugin_for_output_format(fmt):
         return _azw3_output_plugin()
     if fmt == 'mobi':
         return _mobi_output_plugin()
+    if fmt == 'htmlz':
+        return _htmlz_output_plugin()
     return None
 def available_input_formats():
     return {'epub', 'kepub', 'mobi', 'prc', 'azw', 'azw3', 'pobi'}
 def available_output_formats():
-    return {'azw3', 'mobi'}
+    return {'azw3', 'mobi', 'htmlz'}
 def input_profiles():
     from calibre.customize import profiles
     for cls in profiles.input_profiles:
