@@ -99,7 +99,7 @@ class ConverterService : LifecycleService() {
 
     private fun notifText(): String {
         val info = ServerBus.state.value
-        if (!info.running) return if (converting) "Converting queued books" else "Server stopped"
+        if (!info.running) return if (converting) "Converting queued books" else "Web server stopped"
         val addr = discoverAddresses().firstOrNull()?.ip ?: "this device"
         return "Kindle: open  $addr:${info.port}"
     }
@@ -109,7 +109,7 @@ class ConverterService : LifecycleService() {
 
     private fun buildNotification(text: String): Notification {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val ch = NotificationChannel(CHANNEL, "Kindle server", NotificationManager.IMPORTANCE_LOW)
+            val ch = NotificationChannel(CHANNEL, "Web server", NotificationManager.IMPORTANCE_LOW)
             getSystemService(NotificationManager::class.java).createNotificationChannel(ch)
         }
         val open = PendingIntent.getActivity(

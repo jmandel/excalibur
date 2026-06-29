@@ -119,7 +119,7 @@ private fun ReadyView(
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Rounded.CheckCircle, null, tint = cs.primary, modifier = Modifier.size(28.dp))
         Spacer(Modifier.width(10.dp))
-        Text("Ready to send", style = MaterialTheme.typography.headlineSmall)
+        Text("Ready", style = MaterialTheme.typography.headlineSmall)
     }
     Spacer(Modifier.height(20.dp))
     ServerToggleRow(server, onToggleServer)
@@ -129,10 +129,10 @@ private fun ReadyView(
         Spacer(Modifier.height(16.dp))
         Text("Your book is at the top of the Kindle page.", style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
     } else {
-        Text("Turn on Send to Kindle to use the Kindle browser.", style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
+        Text("Turn on the web server to use the Kindle browser.", style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
     }
     Spacer(Modifier.height(28.dp))
-    Button(onClick = onPreview, modifier = Modifier.fillMaxWidth()) { Text("Preview book") }
+    Button(onClick = onPreview, modifier = Modifier.fillMaxWidth()) { Text("Generate preview") }
     Spacer(Modifier.height(12.dp))
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         OutlinedButton(onClick = onViewLibrary, modifier = Modifier.weight(1f)) { Text("View library") }
@@ -150,7 +150,7 @@ private fun ServerToggleRow(server: ServerBus.Info, onToggle: (Boolean) -> Unit)
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text("Send to Kindle", style = MaterialTheme.typography.titleMedium)
+            Text("Web server", style = MaterialTheme.typography.titleMedium)
             Text(
                 if (server.running) "On, port ${server.port}" else "Off",
                 style = MaterialTheme.typography.bodySmall,

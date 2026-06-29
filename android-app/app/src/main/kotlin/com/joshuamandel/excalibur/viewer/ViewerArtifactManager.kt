@@ -89,34 +89,82 @@ class ViewerArtifactManager(
 
     private fun polishHtml(entry: File) {
         val html = runCatching { entry.readText() }.getOrNull() ?: return
-        if (html.contains("data-excalibur-viewer")) return
+        val cleaned = VIEWER_INJECTION.replace(html, "")
         val injected = """
             <meta name="viewport" content="width=device-width, initial-scale=1" data-excalibur-viewer="1">
+            <link rel="stylesheet" href="excalibur-theme.css" data-excalibur-viewer="1">
             <style data-excalibur-viewer="1">
-            html { background: #ffffff; color: #111111; }
+            :root {
+              --excalibur-background: Canvas;
+              --excalibur-surface: Canvas;
+              --excalibur-on-background: CanvasText;
+              --excalibur-on-surface-variant: CanvasText;
+              --excalibur-primary: LinkText;
+              --excalibur-outline: GrayText;
+              --excalibur-page-pad-x: 22px;
+            }
+            * { scroll-behavior: auto !important; }
+            html {
+              background: var(--excalibur-background) !important;
+              color: var(--excalibur-on-background) !important;
+              overflow-x: auto;
+              overflow-y: hidden;
+            }
             body {
-              max-width: 42rem;
-              margin: 0 auto;
-              padding: 1rem;
-              line-height: 1.55;
+              box-sizing: border-box;
+              height: 100vh;
+              max-width: none !important;
+              margin: 0 !important;
+              padding: 24px var(--excalibur-page-pad-x);
+              background: var(--excalibur-background) !important;
+              color: var(--excalibur-on-background) !important;
+              line-height: 1.58;
               word-break: normal;
               overflow-wrap: anywhere;
+              overflow: visible;
+              column-fill: auto;
+              column-gap: calc(var(--excalibur-page-pad-x) * 2);
+              column-width: calc(100vw - (var(--excalibur-page-pad-x) * 2));
+            }
+            body, body * {
+              background-color: transparent !important;
+              color: var(--excalibur-on-background) !important;
+            }
+            a, a * { color: var(--excalibur-primary) !important; }
+            h1, h2, h3, h4, h5, h6 {
+              color: var(--excalibur-primary) !important;
+              break-after: avoid;
             }
             img, svg, video { max-width: 100%; height: auto; }
             pre { white-space: pre-wrap; }
+            blockquote, pre {
+              border-inline-start: 3px solid var(--excalibur-outline);
+              color: var(--excalibur-on-surface-variant) !important;
+              padding-inline-start: 0.8rem;
+            }
+            blockquote, pre, table, img, svg, video {
+              break-inside: avoid-column;
+            }
+            @media (min-width: 720px) {
+              :root { --excalibur-page-pad-x: 48px; }
+              body { padding-top: 32px; padding-bottom: 32px; }
+            }
             </style>
         """.trimIndent()
         val closeHead = Regex("</head>", RegexOption.IGNORE_CASE)
-        val updated = if (closeHead.containsMatchIn(html)) {
-            closeHead.replaceFirst(html, "$injected\n</head>")
+        val updated = if (closeHead.containsMatchIn(cleaned)) {
+            closeHead.replaceFirst(cleaned, "$injected\n</head>")
         } else {
-            "$injected\n$html"
+            "$injected\n$cleaned"
         }
         entry.writeText(updated)
     }
 
     private companion object {
-        const val VERSION = 1
+        const val VERSION = 2
         const val MANIFEST = "viewer-manifest.json"
+        val VIEWER_INJECTION = Regex(
+            """(?is)\s*<meta\b[^>]*data-excalibur-viewer=["']1["'][^>]*>\s*(?:<link\b[^>]*data-excalibur-viewer=["']1["'][^>]*>\s*)?<style\b[^>]*data-excalibur-viewer=["']1["'][^>]*>.*?</style>""",
+        )
     }
 }

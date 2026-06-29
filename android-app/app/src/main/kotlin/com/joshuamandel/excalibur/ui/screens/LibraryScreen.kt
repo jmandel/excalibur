@@ -232,7 +232,6 @@ fun LibraryScreen(
                             onClick = {
                                 when {
                                     selectionMode -> toggle(book.id)
-                                    book.isReady -> onReadBook(book.id)
                                     else -> onOpenBook(book.id)
                                 }
                             },
@@ -275,7 +274,7 @@ private fun ServerBanner(
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                if (server.running) "Send to Kindle" else "Send to Kindle is off",
+                if (server.running) "Web server is on" else "Web server is off",
                 style = MaterialTheme.typography.titleSmall,
             )
             if (server.running) {
@@ -301,7 +300,7 @@ private fun ServerBanner(
                 }
             } else {
                 Text(
-                    "Turn on to serve books to your Kindle",
+                    "Turn on to let your Kindle browser download books",
                     style = MaterialTheme.typography.bodySmall,
                     color = cs.onSurfaceVariant,
                 )
@@ -371,7 +370,7 @@ private fun BookRow(
                 IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, "More") }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     if (book.isReady) {
-                        DropdownMenuItem(text = { Text("Preview") }, onClick = { menu = false; onPreview() })
+                        DropdownMenuItem(text = { Text("Generate preview…") }, onClick = { menu = false; onPreview() })
                         // Share works to anyone across apps (no network needed) — the general
                         // option, so it's first. QR/link only reach devices on the same Wi-Fi.
                         DropdownMenuItem(text = { Text("Share…") }, onClick = { menu = false; onShare() })

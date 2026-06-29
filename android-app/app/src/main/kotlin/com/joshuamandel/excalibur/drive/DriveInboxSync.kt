@@ -1,7 +1,10 @@
 package com.joshuamandel.excalibur.drive
 
 import android.content.Context
+import android.database.Cursor
 import android.net.Uri
+import android.provider.DocumentsContract
+import android.provider.DocumentsContract.Document
 import android.util.Log
 import androidx.documentfile.provider.DocumentFile
 import androidx.work.Constraints
@@ -13,6 +16,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.joshuamandel.excalibur.AppGraph
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -24,21 +28,31 @@ data class DriveInboxSyncResult(
     val skipped: Int = 0,
     val ignored: Int = 0,
     val failed: Int = 0,
+    val visibleFiles: Int = 0,
+    val loadingRetries: Int = 0,
     val message: String = "",
 ) {
     val changed get() = imported > 0
     fun summary(): String = message.ifBlank {
-        "Drive sync done: $imported imported, $duplicates already in library, $skipped already seen, $ignored ignored, $failed failed."
+        val loading = if (loadingRetries > 0) " Drive was still loading; retried $loadingRetries time${if (loadingRetries == 1) "" else "s"}." else ""
+        "Drive sync done: $imported imported, $duplicates already in library, $skipped already seen, $ignored ignored, $failed failed. Scanned $visibleFiles visible file${if (visibleFiles == 1) "" else "s"}.$loading"
     }
 }
 
 object DriveInboxSync {
     private val supported = setOf("epub", "mobi", "azw", "azw3", "prc", "pobi")
+    private const val MAX_LOADING_QUERIES = 5
+    private const val LOADING_RETRY_MS = 1_500L
 
     fun folderName(context: Context, uri: Uri): String =
         DocumentFile.fromTreeUri(context, uri)?.name?.takeIf { it.isNotBlank() } ?: "Drive inbox"
 
-    suspend fun sync(context: Context, convertQueued: Boolean, onLog: (String) -> Unit = {}): DriveInboxSyncResult =
+    suspend fun sync(
+        context: Context,
+        convertQueued: Boolean,
+        requestProviderRefresh: Boolean = true,
+        onLog: (String) -> Unit = {},
+    ): DriveInboxSyncResult =
         withContext(Dispatchers.IO) {
             val app = context.applicationContext
             val graph = AppGraph.get(app)
@@ -49,6 +63,10 @@ object DriveInboxSync {
             val root = DocumentFile.fromTreeUri(app, rootUri)
                 ?: return@withContext DriveInboxSyncResult(failed = 1, message = "Drive inbox folder could not be opened.")
             if (!root.canRead()) return@withContext DriveInboxSyncResult(failed = 1, message = "Drive inbox permission is no longer available.")
+            if (requestProviderRefresh) {
+                val refreshed = requestRefresh(app, rootUri)
+                onLog(if (refreshed) "Asked Drive to refresh the folder." else "Scanning Drive inbox.")
+            }
 
             var imported = 0
             var duplicates = 0
@@ -58,9 +76,11 @@ object DriveInboxSync {
             val importedKeys = mutableListOf<String>()
             val seen = settings.driveImportedDocumentKeys
             val profile = settings.lastProfile
+            val listing = listChildren(app, rootUri) { onLog(it) }
+            onLog("Drive returned ${listing.files.size} visible file${if (listing.files.size == 1) "" else "s"}.")
 
-            for (doc in root.listFiles().filter { it.isFile }.sortedBy { it.name.orEmpty().lowercase(Locale.US) }) {
-                val name = doc.name.orEmpty()
+            for (doc in listing.files.sortedBy { it.name.lowercase(Locale.US) }) {
+                val name = doc.name
                 val ext = name.substringAfterLast('.', "").lowercase(Locale.US)
                 if (ext !in supported) { ignored++; continue }
                 val key = documentKey(doc)
@@ -79,13 +99,100 @@ object DriveInboxSync {
             graph.settings.addDriveImportedDocumentKeys(importedKeys)
             if (convertQueued && imported > 0) graph.conversion.drain()
 
-            DriveInboxSyncResult(imported, duplicates, skipped, ignored, failed).also {
+            DriveInboxSyncResult(
+                imported = imported,
+                duplicates = duplicates,
+                skipped = skipped,
+                ignored = ignored,
+                failed = failed,
+                visibleFiles = listing.files.size,
+                loadingRetries = listing.loadingRetries,
+            ).also {
                 graph.settings.setDriveLastSyncSummary(it.summary())
             }
         }
 
-    private fun documentKey(doc: DocumentFile): String =
-        listOf(doc.uri.toString(), doc.length().toString(), doc.lastModified().toString()).joinToString("|")
+    private fun requestRefresh(context: Context, treeUri: Uri): Boolean {
+        val resolver = context.contentResolver
+        val rootDocUri = runCatching {
+            DocumentsContract.buildDocumentUriUsingTree(treeUri, DocumentsContract.getTreeDocumentId(treeUri))
+        }.getOrNull()
+        return listOfNotNull(rootDocUri, treeUri).distinct().any { uri ->
+            runCatching { resolver.refresh(uri, null, null) }.getOrDefault(false)
+        }
+    }
+
+    private suspend fun listChildren(
+        context: Context,
+        treeUri: Uri,
+        onLog: (String) -> Unit,
+    ): DriveListing {
+        val parentId = DocumentsContract.getTreeDocumentId(treeUri)
+        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentId)
+        var latest = DriveListing()
+        repeat(MAX_LOADING_QUERIES) { attempt ->
+            latest = queryChildren(context, treeUri, childrenUri).copy(loadingRetries = attempt)
+            if (!latest.loading) return latest
+            if (attempt < MAX_LOADING_QUERIES - 1) {
+                onLog("Drive is still loading folder contents...")
+                delay(LOADING_RETRY_MS)
+            }
+        }
+        return latest
+    }
+
+    private fun queryChildren(context: Context, treeUri: Uri, childrenUri: Uri): DriveListing {
+        val projection = arrayOf(
+            Document.COLUMN_DOCUMENT_ID,
+            Document.COLUMN_DISPLAY_NAME,
+            Document.COLUMN_MIME_TYPE,
+            Document.COLUMN_SIZE,
+            Document.COLUMN_LAST_MODIFIED,
+        )
+        val files = mutableListOf<DriveDocument>()
+        context.contentResolver.query(childrenUri, projection, null, null, null)?.use { cursor ->
+            while (cursor.moveToNext()) {
+                val id = cursor.string(Document.COLUMN_DOCUMENT_ID) ?: continue
+                val mime = cursor.string(Document.COLUMN_MIME_TYPE).orEmpty()
+                if (mime == Document.MIME_TYPE_DIR) continue
+                val name = cursor.string(Document.COLUMN_DISPLAY_NAME).orEmpty().ifBlank { "book" }
+                files += DriveDocument(
+                    uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, id),
+                    name = name,
+                    size = cursor.long(Document.COLUMN_SIZE),
+                    lastModified = cursor.long(Document.COLUMN_LAST_MODIFIED),
+                )
+            }
+            return DriveListing(files, loading = cursor.extras.getBoolean(DocumentsContract.EXTRA_LOADING, false))
+        }
+        return DriveListing(files)
+    }
+
+    private fun Cursor.string(column: String): String? {
+        val index = getColumnIndex(column)
+        return if (index >= 0 && !isNull(index)) getString(index) else null
+    }
+
+    private fun Cursor.long(column: String): Long {
+        val index = getColumnIndex(column)
+        return if (index >= 0 && !isNull(index)) getLong(index) else 0L
+    }
+
+    private fun documentKey(doc: DriveDocument): String =
+        listOf(doc.uri.toString(), doc.size.toString(), doc.lastModified.toString()).joinToString("|")
+
+    private data class DriveListing(
+        val files: List<DriveDocument> = emptyList(),
+        val loading: Boolean = false,
+        val loadingRetries: Int = 0,
+    )
+
+    private data class DriveDocument(
+        val uri: Uri,
+        val name: String,
+        val size: Long,
+        val lastModified: Long,
+    )
 }
 
 object DriveInboxWork {
